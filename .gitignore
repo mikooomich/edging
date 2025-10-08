@@ -1,0 +1,48 @@
+# Build output directory
+build/
+
+# Executable files
+main
+run
+
+# Compiled intermediate files
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+*.out
+
+# CMake generated files
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# vcpkg (usually not committed, too large)
+# If team shares vcpkg, comment out this line
+vcpkg/
+
+# IDE and editor files
+.vscode/
+.idea/
+.cache/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Program generated images (optional, decide based on version control needs)
+blurred_image.png
+blurred.png
+sobel_vertical.png
+sobel_horizontal.png
+magnitude.png
+direction.png
+noise.png
+test.png
+
+# Keep original input image
+!image.PNG
+
