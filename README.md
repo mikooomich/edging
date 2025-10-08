@@ -1,8 +1,8 @@
 This is a serious edging project.
 
-You can use cmake if you wish to.
+You may use cmake if you wish to.
 
-You can also
+You may also
 g++ main.cpp bitmap.cpp -o whyareyourunning && ./whyareyourunning
 for simplicity.
 
