@@ -1,14 +1,18 @@
 #include "bitmap.h"
 #include <cmath>
 #include <iostream>
+#include <filesystem>
+namespace fs = std::filesystem;
 
-int main() {
+// main processing function.
+// Loads image, processes it, and then saves it
+int processImage(const std::string& filename, const std::string& inputDir, const std::string& outputDir) {
 
     std::cout << "Trying to detect edges" << std::endl;
-    Bitmap image = load_image_grayscale("output_display/image.PNG");
+    Bitmap image = load_image_grayscale(inputDir + "/" +  filename);
     // Apply Gaussian blur
     Bitmap blurred_image = gaussian_blur(image, 11, 1.0f);
-    save_bitmap(blurred_image, "output_display/blurred_image.png");
+    save_bitmap(blurred_image, outputDir + "/" + filename + "_blurred_image.png");
     
 
     FloatMap sobel_vertical_kernel = get_sobel_kernel(true);
@@ -17,12 +21,12 @@ int main() {
     Bitmap visual = create_bitmap_from_floatmap(sobel_vertical_image);
 
 
-    save_bitmap(visual, "output_display/sobel_vertical.png");
+    save_bitmap(visual, outputDir + "/" + filename + "_sobel_vertical.png");
 
     FloatMap sobel_horizontal_kernel = get_sobel_kernel(false);
     FloatMap sobel_horizontal_image = apply_kernel(image, sobel_horizontal_kernel);
     Bitmap visual_horizontal = create_bitmap_from_floatmap(sobel_horizontal_image);
-    save_bitmap(visual_horizontal, "output_display/sobel_horizontal.png");
+    save_bitmap(visual_horizontal, outputDir + "/" + filename + "_sobel_horizontal.png");
 
 
     // magnitude = sqrt(Gx^2 + Gy^2)
@@ -36,7 +40,7 @@ int main() {
     }
 
     Bitmap magnitude_visual = create_bitmap_from_floatmap(magnitude);
-    save_bitmap(magnitude_visual, "output_display/magnitude.png");
+    save_bitmap(magnitude_visual, outputDir + "/" + filename + "_magnitude.png");
 
     FloatMap direction = FloatMap(sobel_vertical_image.width, sobel_vertical_image.height);
     for (int y = 0; y < direction.height; y++) {
@@ -47,10 +51,24 @@ int main() {
         }
     }
     Bitmap direction_visual = create_bitmap_from_floatmap(direction);
-    save_bitmap(direction_visual, "output_display/direction.png");
+    save_bitmap(direction_visual, outputDir + "/" + filename + "_direction.png");
 
-    std::cout << "Saved everything to output_display/" << std::endl;
+    std::cout << "Saved everything to " + outputDir + "/" << std::endl;
 
+
+    return 0;
+}
+
+int main() {
+    std::string indir = "./data/input";
+    std::string outdir = "./data/output";
+    std::string tmpdir = "./data/temp";
+
+    // process all image from input folder
+    for (const auto & entry : fs::directory_iterator(indir)) {
+        std::cout << "Processing: " << entry.path() << std::endl;
+        processImage(entry.path().filename().string(), indir, outdir);
+    }
 
     return 0;
 }

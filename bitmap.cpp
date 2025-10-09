@@ -11,6 +11,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <iostream>
+
 #include "stb_image_write.h"
 
 struct Bitmap {
@@ -118,7 +120,7 @@ FloatMap get_sobel_kernel(const bool vertical = true){
 
 }
 
-void save_bitmap(const Bitmap& bitmap, const std::string& filename) {
+int save_bitmap(const Bitmap& bitmap, const std::string& filename) {
     // Convert 2D array to 1D array
     std::vector<uint8_t> pixels;
     pixels.reserve(bitmap.width * bitmap.height);
@@ -131,13 +133,16 @@ void save_bitmap(const Bitmap& bitmap, const std::string& filename) {
     
     // Write to temporary file first (avoid browser reading incomplete file)
     std::string temp_filename = filename + ".tmp";
-    stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1, 
+    stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1,
                    pixels.data(), bitmap.width);
-    
+
     // Atomically rename to overwrite target file (rename is atomic)
     std::rename(temp_filename.c_str(), filename.c_str());
     // Note: after successful rename, temp file no longer exists (renamed to target file)
     // So no need to delete temp file separately
+
+    std::cout << "Saved image as " << filename << std::endl;
+    return 0;
 }
 
 Bitmap apply_kernel(const Bitmap& bitmap, const Bitmap& kernel) {
