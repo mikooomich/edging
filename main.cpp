@@ -1,8 +1,13 @@
 #include "bitmap.h"
 #include <cmath>
 #include <iostream>
+#include <filesystem>
 
-int main() {
+namespace fs = std::filesystem;
+
+// main processing function.
+// Loads image, processes it, and then saves it
+int processImage(const std::string& filename, const std::string& inputDir, const std::string& outputDir) {
 
     // int q = "2";
     
@@ -57,8 +62,22 @@ int main() {
     Bitmap direction_bitmap = create_bitmap_from_floatmap(direction);
     save_bitmap(direction_bitmap, "output_display/direction.png");
 
-    std::cout << "Saved everything to output_display/" << std::endl;
+    std::cout << "Saved everything to " + outputDir + "/" << std::endl;
 
+
+    return 0;
+}
+
+int main() {
+    std::string indir = "./data/input";
+    std::string outdir = "./data/output";
+    std::string tmpdir = "./data/temp";
+
+    // process all image from input folder
+    for (const auto & entry : fs::directory_iterator(indir)) {
+        std::cout << "Processing: " << entry.path() << std::endl;
+        processImage(entry.path().filename().string(), indir, outdir);
+    }
 
     return 0;
 }

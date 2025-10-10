@@ -11,6 +11,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <iostream>
+
 #include "stb_image_write.h"
 
 struct Bitmap {
@@ -87,46 +89,46 @@ FloatMap load_image_grayscale(const std::string& filename) {
 }
 
 
-void save_bitmap(const Bitmap& bitmap, const std::string& filename) {
-    // Convert 2D array to 1D array
-    std::vector<uint8_t> pixels;
-    pixels.reserve(bitmap.width * bitmap.height);
+// void save_bitmap(const Bitmap& bitmap, const std::string& filename) {
+//     // Convert 2D array to 1D array
+//     std::vector<uint8_t> pixels;
+//     pixels.reserve(bitmap.width * bitmap.height);
     
-    for (int y = 0; y < bitmap.height; y++) {
-        for (int x = 0; x < bitmap.width; x++) {
-            pixels.push_back(bitmap.data[y][x]);
-        }
-    }
+//     for (int y = 0; y < bitmap.height; y++) {
+//         for (int x = 0; x < bitmap.width; x++) {
+//             pixels.push_back(bitmap.data[y][x]);
+//         }
+//     }
     
-    // Write to temporary file first (avoid browser reading incomplete file)
-    std::string temp_filename = filename + ".tmp";
-    stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1, 
-                   pixels.data(), bitmap.width);
+//     // Write to temporary file first (avoid browser reading incomplete file)
+//     std::string temp_filename = filename + ".tmp";
+//     stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1, 
+//                    pixels.data(), bitmap.width);
     
-    // Atomically rename to overwrite target file (rename is atomic)
-    std::rename(temp_filename.c_str(), filename.c_str());
-    // Note: after successful rename, temp file no longer exists (renamed to target file)
-    // So no need to delete temp file separately
-}
+//     // Atomically rename to overwrite target file (rename is atomic)
+//     std::rename(temp_filename.c_str(), filename.c_str());
+//     // Note: after successful rename, temp file no longer exists (renamed to target file)
+//     // So no need to delete temp file separately
+// }
 
-void save_bitmap(const FloatMap& floatmap, const std::string& filename) {
-    // Check FloatMap validity
-    if (!is_valid_floatmap(floatmap)) {
-        fprintf(stderr, "Error: FloatMap contains values outside [0, 1] range\n");
-        exit(1);
-    }
+// void save_bitmap(const FloatMap& floatmap, const std::string& filename) {
+//     // Check FloatMap validity
+//     if (!is_valid_floatmap(floatmap)) {
+//         fprintf(stderr, "Error: FloatMap contains values outside [0, 1] range\n");
+//         exit(1);
+//     }
     
-    // Convert FloatMap to Bitmap
-    Bitmap bitmap(floatmap.width, floatmap.height);
-    for (int y = 0; y < floatmap.height; y++) {
-        for (int x = 0; x < floatmap.width; x++) {
-            bitmap.data[y][x] = static_cast<uint8_t>(floatmap.data[y][x] * 255.0f);
-        }
-    }
+//     // Convert FloatMap to Bitmap
+//     Bitmap bitmap(floatmap.width, floatmap.height);
+//     for (int y = 0; y < floatmap.height; y++) {
+//         for (int x = 0; x < floatmap.width; x++) {
+//             bitmap.data[y][x] = static_cast<uint8_t>(floatmap.data[y][x] * 255.0f);
+//         }
+//     }
     
-    // Call the base save_bitmap function
-    save_bitmap(bitmap, filename);
-}
+//     // Call the base save_bitmap function
+//     save_bitmap(bitmap, filename);
+// }
 
 
 FloatMap border_extend_floatmap(const FloatMap& floatmap, int padding) {
@@ -181,7 +183,64 @@ FloatMap get_sobel_kernel(const bool vertical = true){
 
 }
 
+int save_bitmap(const Bitmap& bitmap, const std::string& filename) {
+    // Convert 2D array to 1D array
+    std::vector<uint8_t> pixels;
+    pixels.reserve(bitmap.width * bitmap.height);
+    
+    for (int y = 0; y < bitmap.height; y++) {
+        for (int x = 0; x < bitmap.width; x++) {
+            pixels.push_back(bitmap.data[y][x]);
+        }
+    }
+    
+    // Write to temporary file first (avoid browser reading incomplete file)
+    std::string temp_filename = filename + ".tmp";
+    stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1,
+                   pixels.data(), bitmap.width);
 
+    // Atomically rename to overwrite target file (rename is atomic)
+    std::rename(temp_filename.c_str(), filename.c_str());
+    // Note: after successful rename, temp file no longer exists (renamed to target file)
+    // So no need to delete temp file separately
+
+    std::cout << "Saved image as " << filename << std::endl;
+    return 0;
+}
+
+Bitmap apply_kernel(const Bitmap& bitmap, const Bitmap& kernel) {
+    assert(kernel.width == kernel.height && "Kernel must be square");
+    assert(kernel.width % 2 == 1 && "Kernel width must be odd");
+    
+    // Calculate kernel sum (for normalization)
+    float kernel_sum = 0;
+    for (int ky = 0; ky < kernel.height; ky++) {
+        for (int kx = 0; kx < kernel.width; kx++) {
+            kernel_sum += kernel.data[ky][kx];
+        }
+    }
+    
+    /**
+    when bitmap is x*y, kernel is k*k, then the blurred bitmap is (x-k+1)*(y-k+1)
+    */
+    Bitmap blurred(bitmap.width - kernel.width + 1, bitmap.height - kernel.height + 1);
+    
+    // Python: blurred[y][x] = sum(bitmap[y+ky][x+kx] * kernel[ky][kx] 
+    //                              for ky in range(k) for kx in range(k)) / kernel_sum
+    for (int y = 0; y < blurred.height; y++) {
+        for (int x = 0; x < blurred.width; x++) {
+            float sum = 0;
+            for (int ky = 0; ky < kernel.height; ky++) {
+                for (int kx = 0; kx < kernel.width; kx++) {
+                    sum += bitmap.data[y + ky][x + kx] * kernel.data[ky][kx];
+                }
+            }
+            // Normalize and clamp to 0-255
+            blurred.data[y][x] = static_cast<uint8_t>(std::min(255.0f, sum / kernel_sum));
+        }
+    }
+    return blurred;
+}
 
 // Support kernels with negative values (e.g. Sobel edge detection)
 FloatMap apply_kernel(const Bitmap& bitmap, const FloatMap& kernel) {
