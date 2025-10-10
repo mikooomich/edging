@@ -1,8 +1,21 @@
 #include "bitmap.h"
+#include <cassert>
 #include <cmath>
 #include <iostream>
 #include <filesystem>
 namespace fs = std::filesystem;
+
+FloatMap apply_sobel_edge_detection(const FloatMap& image, int blur_kernel_size, int blur_sigma) {
+    assert(blur_kernel_size % 2 == 1 && "Blur kernel size must be odd");
+    assert(blur_sigma > 0 && "Blur sigma must be positive");
+    
+    FloatMap blurred_image = gaussian_blur(image, blur_kernel_size, blur_sigma);
+    FloatMap sobel_vertical_image = apply_kernel_as_sum(blurred_image, get_sobel_kernel(true));
+    FloatMap sobel_horizontal_image = apply_kernel_as_sum(blurred_image, get_sobel_kernel(false));
+    FloatMap magnitude = calculate_magnitude(sobel_horizontal_image, sobel_vertical_image);
+    return magnitude;
+}
+
 
 // main processing function.
 // Loads image, processes it, and then saves it
@@ -10,8 +23,8 @@ int processImage(const std::string& filename, const std::string& inputDir, const
 
     //compute required file paths
     std::string image_path = inputDir + "/" + filename;
-
-    //we can keep these in config file later if you hate hardcoding filenames so much.
+    
+    //output paths for debugging
     std::string image_original_path = outputDir + "/image_original.png";
     std::string blurred_image_path = outputDir + "/blurred_image.png";
     std::string sobel_vertical_path = outputDir + "/sobel_vertical.png";
@@ -19,9 +32,10 @@ int processImage(const std::string& filename, const std::string& inputDir, const
     std::string magnitude_path = outputDir + "/magnitude.png";
     std::string direction_path = outputDir + "/direction.png";
 
+    //final output path
     std::string final_output_path = outputDir + "/result_" + filename;
 
-    // int q = "2";
+    
     
     std::cout << "Trying to detect edges" << std::endl;
     // Load the input image and convert to grayscale FloatMap
@@ -62,24 +76,20 @@ int processImage(const std::string& filename, const std::string& inputDir, const
 
     // Calculate edge direction using atan2 of gradient components
     // Direction indicates the orientation of edges at each pixel
-    FloatMap direction = FloatMap(sobel_vertical_image.width, sobel_vertical_image.height);
-    for (int y = 0; y < direction.height; y++) {
-        for (int x = 0; x < direction.width; x++) {
-            float gx = sobel_horizontal_image.data[y][x];
-            float gy = sobel_vertical_image.data[y][x];
-            direction.data[y][x] = std::atan2(gy, gx);
-        }
-    }
+    // This is not required in sobel. It is required in canny.
+    FloatMap direction = calculate_direction(sobel_horizontal_image, sobel_vertical_image);
     std::cout << "Saving direction image" << std::endl;
     Bitmap direction_bitmap = create_bitmap_from_floatmap(direction);
     save_bitmap_as(direction_bitmap, direction_path);
 
-
+    //if we are doing sobel, this is the final output.
+    //if we want to go canny, we need to do more processing.
     Bitmap final_output_bitmap = create_bitmap_from_floatmap(magnitude);
     std::cout << "Saving final output image" << std::endl;
     save_bitmap_as(final_output_bitmap, final_output_path);
-
     std::cout << "Saved everything to " + outputDir + "/" << std::endl;
+
+    
 
 
     return 0;

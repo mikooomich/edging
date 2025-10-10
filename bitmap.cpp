@@ -21,6 +21,30 @@ struct Bitmap {
     std::vector<std::vector<uint8_t>> data; // data[y][x] represents the pixel at (x, y)
 
     Bitmap(int w, int h) : width(w), height(h), data(h, std::vector<uint8_t>(w, 0)) {}
+    
+    // Equality operator
+    bool operator==(const Bitmap& other) const {
+        // Check dimensions first
+        if (width != other.width || height != other.height) {
+            return false;
+        }
+        
+        // Compare pixel by pixel
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                if (data[y][x] != other.data[y][x]) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    // Inequality operator
+    bool operator!=(const Bitmap& other) const {
+        return !(*this == other);
+    }
 };
 
 struct FloatMap {
@@ -393,6 +417,18 @@ FloatMap calculate_magnitude(const FloatMap& sobel_horizontal, const FloatMap& s
         }
     }
     return magnitude;
+}
+
+FloatMap calculate_direction(const FloatMap& sobel_horizontal_image, const FloatMap& sobel_vertical_image) {
+    FloatMap direction(sobel_vertical_image.width, sobel_vertical_image.height);
+    for (int y = 0; y < direction.height; y++) {
+        for (int x = 0; x < direction.width; x++) {
+            float gx = sobel_horizontal_image.data[y][x];
+            float gy = sobel_vertical_image.data[y][x];
+            direction.data[y][x] = std::atan2(gy, gx);
+        }
+    }
+    return direction;
 }
 
 Bitmap create_bitmap_from_floatmap(const FloatMap& floatmap) {

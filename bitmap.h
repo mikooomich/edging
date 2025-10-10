@@ -12,6 +12,11 @@ struct Bitmap {
     std::vector<std::vector<uint8_t>> data;
     
     Bitmap(int w, int h);
+
+    bool operator==(const Bitmap& other) const;
+    bool operator!=(const Bitmap& other) const;
+
+    
 };
 
 // For storing convolution kernels with negative values (e.g., Sobel)
@@ -37,6 +42,8 @@ FloatMap gaussian_blur(const FloatMap& floatmap, const int kernel_size, const fl
 FloatMap get_sobel_kernel(const bool vertical = true);
 FloatMap calculate_magnitude(const FloatMap& sobel_horizontal, const FloatMap& sobel_vertical);
 Bitmap create_bitmap_from_floatmap(const FloatMap& floatmap);
+FloatMap calculate_direction(const FloatMap& sobel_horizontal_image, const FloatMap& sobel_vertical_image);
+
 
 
 #endif
