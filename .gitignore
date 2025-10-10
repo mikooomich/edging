@@ -14,11 +14,11 @@ run
 *.out
 
 # CMake generated files
-compile_commands.json
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
+# Keep compile_commands.json symlink for clangd
 
 # vcpkg (usually not committed, too large)
 # If team shares vcpkg, comment out this line
@@ -33,16 +33,31 @@ vcpkg/
 *~
 .DS_Store
 
-# Program generated images (optional, decide based on version control needs)
-blurred_image.png
-blurred.png
-sobel_vertical.png
-sobel_horizontal.png
-magnitude.png
-direction.png
-noise.png
-test.png
+# Temporary files
+*.tmp
+*.temp
+*.log
+core
+*.pid
 
-# Keep original input image
-!image.PNG
+# C++ debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Python cache (for watch_build.py)
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Backup files
+*.bak
+*.backup
+
+# Program generated images (optional, decide based on version control needs)
+output_display/*.png
+!output_display/image*.png
+!output_display/index.html
 
