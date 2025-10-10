@@ -5,7 +5,7 @@ This is a serious edging project.
 You may use cmake if you wish to.
 
 You may also
-g++ main.cpp bitmap.cpp -o whyareyourunning && ./whyareyourunning
+g++ main.cpp bitmap.cpp -std=c++17 -o whyareyourunning && ./whyareyourunning
 for simplicity.
 
 1. Create a folder named "data". Create folders "data/input", "data/output", "data/temp". You can also use the template data folder provided
