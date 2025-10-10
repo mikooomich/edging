@@ -89,46 +89,46 @@ FloatMap load_image_grayscale(const std::string& filename) {
 }
 
 
-// void save_bitmap(const Bitmap& bitmap, const std::string& filename) {
-//     // Convert 2D array to 1D array
-//     std::vector<uint8_t> pixels;
-//     pixels.reserve(bitmap.width * bitmap.height);
+void save_bitmap_as(const Bitmap& bitmap, const std::string& filename) {
+    // Convert 2D array to 1D array
+    std::vector<uint8_t> pixels;
+    pixels.reserve(bitmap.width * bitmap.height);
     
-//     for (int y = 0; y < bitmap.height; y++) {
-//         for (int x = 0; x < bitmap.width; x++) {
-//             pixels.push_back(bitmap.data[y][x]);
-//         }
-//     }
+    for (int y = 0; y < bitmap.height; y++) {
+        for (int x = 0; x < bitmap.width; x++) {
+            pixels.push_back(bitmap.data[y][x]);
+        }
+    }
     
-//     // Write to temporary file first (avoid browser reading incomplete file)
-//     std::string temp_filename = filename + ".tmp";
-//     stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1, 
-//                    pixels.data(), bitmap.width);
+    // Write to temporary file first (avoid browser reading incomplete file)
+    std::string temp_filename = filename + ".tmp";
+    stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1, 
+                   pixels.data(), bitmap.width);
     
-//     // Atomically rename to overwrite target file (rename is atomic)
-//     std::rename(temp_filename.c_str(), filename.c_str());
-//     // Note: after successful rename, temp file no longer exists (renamed to target file)
-//     // So no need to delete temp file separately
-// }
+    // Atomically rename to overwrite target file (rename is atomic)
+    std::rename(temp_filename.c_str(), filename.c_str());
+    // Note: after successful rename, temp file no longer exists (renamed to target file)
+    // So no need to delete temp file separately
+}
 
-// void save_bitmap(const FloatMap& floatmap, const std::string& filename) {
-//     // Check FloatMap validity
-//     if (!is_valid_floatmap(floatmap)) {
-//         fprintf(stderr, "Error: FloatMap contains values outside [0, 1] range\n");
-//         exit(1);
-//     }
+void save_bitmap_as(const FloatMap& floatmap, const std::string& filename) {
+    // Check FloatMap validity
+    if (!is_valid_floatmap(floatmap)) {
+        fprintf(stderr, "Error: FloatMap contains values outside [0, 1] range\n");
+        exit(1);
+    }
     
-//     // Convert FloatMap to Bitmap
-//     Bitmap bitmap(floatmap.width, floatmap.height);
-//     for (int y = 0; y < floatmap.height; y++) {
-//         for (int x = 0; x < floatmap.width; x++) {
-//             bitmap.data[y][x] = static_cast<uint8_t>(floatmap.data[y][x] * 255.0f);
-//         }
-//     }
+    // Convert FloatMap to Bitmap
+    Bitmap bitmap(floatmap.width, floatmap.height);
+    for (int y = 0; y < floatmap.height; y++) {
+        for (int x = 0; x < floatmap.width; x++) {
+            bitmap.data[y][x] = static_cast<uint8_t>(floatmap.data[y][x] * 255.0f);
+        }
+    }
     
-//     // Call the base save_bitmap function
-//     save_bitmap(bitmap, filename);
-// }
+    // Call the base save_bitmap function
+    save_bitmap_as(bitmap, filename);
+}
 
 
 FloatMap border_extend_floatmap(const FloatMap& floatmap, int padding) {
