@@ -64,3 +64,4 @@ output_display/*.png
 # Data output folder
 data/output/
 
+data/

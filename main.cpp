@@ -95,6 +95,9 @@ int processImage(const std::string& filename, const std::string& inputDir, const
     return 0;
 }
 
+// TODO: image loading and saving before and after processing
+// Remove dead code
+// ???
 int main() {
     std::string indir = "./data/input";
     std::string outdir = "./data/output";
@@ -102,10 +105,11 @@ int main() {
 
     // process all image from input folder
     for (const auto & entry : fs::directory_iterator(indir)) {
-        std::cout << "Processing: " << entry.path() << std::endl;
         std::string filename = entry.path().filename().string();
-        std::cout << "Processing: " << filename << std::endl;
-        processImage(filename, indir, outdir);
+        if (filename[0] != '.') {
+            std::cout << "Processing: " << filename << std::endl;
+            processImage(filename, indir, outdir);
+        }
     }
 
     return 0;
