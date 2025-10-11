@@ -53,7 +53,7 @@ int processImage(const std::string& filename, const std::string& inputDir, const
     // Apply vertical Sobel operator to detect horizontal edges
     // Convert result to Bitmap for visualization and save
     FloatMap sobel_vertical_kernel = get_sobel_kernel(true);
-    FloatMap sobel_vertical_image = apply_kernel_as_sum(image, sobel_vertical_kernel);
+    FloatMap sobel_vertical_image = apply_kernel_as_sum(blurred_image, sobel_vertical_kernel);
     std::cout << "Saving sobel vertical image" << std::endl;
     Bitmap vertical_bitmap = create_bitmap_from_floatmap(sobel_vertical_image);
     save_bitmap_as(vertical_bitmap, sobel_vertical_path);
@@ -61,7 +61,7 @@ int processImage(const std::string& filename, const std::string& inputDir, const
     // Apply horizontal Sobel operator to detect vertical edges
     // Convert result to Bitmap for visualization and save
     FloatMap sobel_horizontal_kernel = get_sobel_kernel(false);
-    FloatMap sobel_horizontal_image = apply_kernel_as_sum(image, sobel_horizontal_kernel);
+    FloatMap sobel_horizontal_image = apply_kernel_as_sum(blurred_image, sobel_horizontal_kernel);
     std::cout << "Saving sobel horizontal image" << std::endl;
     Bitmap horizontal_bitmap = create_bitmap_from_floatmap(sobel_horizontal_image);
     save_bitmap_as(horizontal_bitmap, sobel_horizontal_path);

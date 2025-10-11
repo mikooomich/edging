@@ -61,3 +61,6 @@ output_display/*.png
 !output_display/image*.png
 !output_display/index.html
 
+# Data output folder
+data/output/
+
