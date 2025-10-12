@@ -9,4 +9,4 @@ if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})
       CACHE STRING "")
 endif()
 
-add_executable(main main.cpp bitmap.cpp)
+add_executable(main main.cpp bitmap.cpp utils.cpp utils.h)

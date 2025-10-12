@@ -18,7 +18,7 @@ g++ main.cpp bitmap.cpp -std=c++17 -o whyareyourunning
 Or all together
 
 ```bash
-g++ main.cpp bitmap.cpp -std=c++17 -o whyareyourunning && ./whyareyourunning
+g++ main.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning && ./whyareyourunning
 ```
 
 4. The output images are stored in `data/output/`

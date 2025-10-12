@@ -38,19 +38,12 @@ struct BitmapResult {
     std::vector<BitmapResult> debugFrames; // for debug only
 
     BitmapResult(std::string  filename, long initialTime, FloatMap input, Bitmap output);
-
-    /**
-     * for debug progress bitmaps
-     */
-    BitmapResult(std::string filename, FloatMap input, Bitmap output);
 };
 
 
 inline BitmapResult::BitmapResult(std::string  filename, long initialTime, FloatMap input, Bitmap output):
   filename(std::move(filename)), totalRuntime(initialTime), image(std::move(input)), outBitmap(std::move(output)) {}
 
-// for debug and progress bitmaps
-inline BitmapResult:: BitmapResult(std::string  filename, FloatMap input, Bitmap output): filename(std::move(filename)), totalRuntime(0L), image(std::move(input)), outBitmap(std::move(output)) {}
 
 bool is_valid_floatmap(const FloatMap& floatmap, int max_output_lines = 10);
 FloatMap load_image_grayscale(const std::string& filename);
