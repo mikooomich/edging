@@ -54,12 +54,13 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, result->image, blurred_image_bitmap));
     std::cout << "DEBUG: sobel_vertical_image" << std::endl;
 #endif
+    FloatMap extended_blurred_image = border_extend_floatmap(blurred_image, 1);
 
     // Apply vertical Sobel operator to detect horizontal edges
     // Convert result to Bitmap for visualization and save
     t1 = getSysTime();
     FloatMap sobel_vertical_kernel = get_sobel_kernel(true);
-    FloatMap sobel_vertical_image = apply_kernel_as_sum(blurred_image, sobel_vertical_kernel);
+    FloatMap sobel_vertical_image = apply_kernel_as_sum(extended_blurred_image, sobel_vertical_kernel);
     Bitmap sobel_vertical_image_bitmap(sobel_vertical_image.width, sobel_vertical_image.height);
     create_bitmap_from_floatmap(sobel_vertical_image, sobel_vertical_image_bitmap);
     t2 = getSysTime();
@@ -73,7 +74,7 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // Convert result to Bitmap for visualization and save
     t1 = getSysTime();
     FloatMap sobel_horizontal_kernel = get_sobel_kernel(false);
-    FloatMap sobel_horizontal_image = apply_kernel_as_sum(blurred_image, sobel_horizontal_kernel);
+    FloatMap sobel_horizontal_image = apply_kernel_as_sum(extended_blurred_image, sobel_horizontal_kernel);
     Bitmap sobel_horizontal_image_bitmap(sobel_horizontal_image.width, sobel_horizontal_image.height);
     create_bitmap_from_floatmap(sobel_horizontal_image, sobel_horizontal_image_bitmap);
     t2 = getSysTime();
