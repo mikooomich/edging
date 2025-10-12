@@ -1,9 +1,9 @@
 // #include <functional>
+#include <utility>
 #include <vector>
 #include <cstdint>
 #include <string>
 #include <cstdio>
-#include <cstdlib>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -15,6 +15,7 @@
 
 #include "stb_image_write.h"
 
+// TODO: WHY ARE THESE DEFINE BOTH HERE AND IN THE HEADER?????????
 struct Bitmap {
     int width;
     int height;
@@ -126,7 +127,7 @@ void save_bitmap_as(const Bitmap& bitmap, const std::string& filename) {
     
     // Write to temporary file first (avoid browser reading incomplete file)
     std::string temp_filename = filename + ".tmp";
-    stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1, 
+    stbi_write_png(temp_filename.c_str(), bitmap.width, bitmap.height, 1,
                    pixels.data(), bitmap.width);
     
     // Atomically rename to overwrite target file (rename is atomic)
@@ -431,7 +432,7 @@ FloatMap calculate_direction(const FloatMap& sobel_horizontal_image, const Float
     return direction;
 }
 
-Bitmap create_bitmap_from_floatmap(const FloatMap& floatmap) {
+Bitmap create_bitmap_from_floatmap(const FloatMap& floatmap, Bitmap& bitmap) {
 
     /*
     Find max/min in floatmap
@@ -442,7 +443,6 @@ Bitmap create_bitmap_from_floatmap(const FloatMap& floatmap) {
     float max_val = find_max_in_floatmap(floatmap);
     float min_val = find_min_in_floatmap(floatmap);
     float range = max_val - min_val;
-    Bitmap bitmap(floatmap.width, floatmap.height);
     for (int y = 0; y < floatmap.height; y++) {
         for (int x = 0; x < floatmap.width; x++) {
             bitmap.data[y][x] = static_cast<uint8_t>((floatmap.data[y][x] - min_val) / range * 255);
