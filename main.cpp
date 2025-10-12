@@ -64,7 +64,7 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     create_bitmap_from_floatmap(sobel_vertical_image, sobel_vertical_image_bitmap);
     t2 = getSysTime();
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, result->image,
+    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, result->image,
                                                   sobel_vertical_image_bitmap));
     std::cout << "DEBUG: sobel_horizontal_image" << std::endl;
 #endif
