@@ -21,6 +21,7 @@
 Bitmap::Bitmap(int w, int h) 
     : width(w), height(h), data(h, std::vector<uint8_t>(w, 0)) {}
 
+//neverused
 // implement Bitmap equal operator
 bool Bitmap::operator==(const Bitmap &other) const {
     if (width != other.width || height != other.height) {
@@ -36,6 +37,7 @@ bool Bitmap::operator==(const Bitmap &other) const {
     return true;
 }
 
+//neverused
 // implement Bitmap not equal operator
 bool Bitmap::operator!=(const Bitmap &other) const {
     return !(*this == other);
@@ -195,6 +197,7 @@ FloatMap get_sobel_kernel(const bool vertical) {
     return kernel;
 }
 
+//neverused
 int save_bitmap(const Bitmap &bitmap, const std::string &filename) {
     // Convert 2D array to 1D array
     std::vector<uint8_t> pixels;
@@ -220,6 +223,7 @@ int save_bitmap(const Bitmap &bitmap, const std::string &filename) {
     return 0;
 }
 
+//neverused
 Bitmap apply_kernel(const Bitmap &bitmap, const Bitmap &kernel) {
     assert(kernel.width == kernel.height && "Kernel must be square");
     assert(kernel.width % 2 == 1 && "Kernel width must be odd");
@@ -254,6 +258,7 @@ Bitmap apply_kernel(const Bitmap &bitmap, const Bitmap &kernel) {
     return blurred;
 }
 
+//neverused
 // Support kernels with negative values (e.g. Sobel edge detection)
 FloatMap apply_kernel(const Bitmap &bitmap, const FloatMap &kernel) {
     assert(kernel.width == kernel.height && "Kernel must be square");
@@ -279,6 +284,24 @@ FloatMap apply_kernel(const Bitmap &bitmap, const FloatMap &kernel) {
     return result;
 }
 
+/**
+ * @brief Apply convolution kernel with normalization (weighted average)
+ * 
+ * Convolves the input image with a kernel and normalizes the result by dividing
+ * by the sum of all kernel weights. This is typically used for blurring operations
+ * like Gaussian blur.
+ * 
+ * @param floatmap Input FloatMap image
+ * @param kernel Convolution kernel (must be square with odd dimensions)
+ * @return FloatMap Convolved image with reduced dimensions
+ * 
+ * @note This function does NOT include border extension. The output dimensions will be
+ *       (width - kernel_size + 1) × (height - kernel_size + 1). For a kernel of size k,
+ *       the output will be smaller by (k-1) pixels in each dimension.
+ * @note Use border_extend_floatmap() before calling this if you want to preserve dimensions
+ * 
+ * @see apply_kernel_as_sum, border_extend_floatmap, gaussian_blur
+ */
 FloatMap apply_kernel_as_weighted_average(const FloatMap &floatmap, const FloatMap &kernel) {
     assert(kernel.width == kernel.height && "Kernel must be square");
     assert(kernel.width % 2 == 1 && "Kernel width must be odd");
@@ -310,6 +333,25 @@ FloatMap apply_kernel_as_weighted_average(const FloatMap &floatmap, const FloatM
     return result;
 }
 
+/**
+ * @brief Apply convolution kernel without normalization (direct sum)
+ * 
+ * Convolves the input image with a kernel using direct summation without normalization.
+ * This is used for edge detection operators like Sobel where kernel weights can be
+ * negative and should not be normalized.
+ * 
+ * @param floatmap Input FloatMap image
+ * @param kernel Convolution kernel (must be square with odd dimensions)
+ * @return FloatMap Convolved image with reduced dimensions
+ * 
+ * @note This function does NOT include border extension. The output dimensions will be
+ *       (width - kernel_size + 1) × (height - kernel_size + 1). For a kernel of size k,
+ *       the output will be smaller by (k-1) pixels in each dimension.
+ * @note Use border_extend_floatmap() before calling this if you want to preserve dimensions
+ * @note Unlike apply_kernel_as_weighted_average, this does NOT normalize by kernel sum
+ * 
+ * @see apply_kernel_as_weighted_average, border_extend_floatmap, get_sobel_kernel
+ */
 FloatMap apply_kernel_as_sum(const FloatMap &floatmap, const FloatMap &kernel) {
     assert(kernel.width == kernel.height && "Kernel must be square");
     assert(kernel.width % 2 == 1 && "Kernel width must be odd");
@@ -356,6 +398,21 @@ FloatMap make_gaussian_kernel(int size, float sigma) {
     return kernel;
 }
 
+/**
+ * @brief Apply Gaussian blur to reduce noise in the image
+ * 
+ * Performs Gaussian blur by creating a 2D Gaussian kernel and convolving
+ * it with the input image. The image is automatically padded using border
+ * extension to preserve the original dimensions.
+ * 
+ * @param floatmap Input grayscale image (values should be in [0, 1] range)
+ * @param kernel_size Size of the Gaussian kernel (must be odd, e.g., 3, 5, 11)
+ * @param sigma Standard deviation of the Gaussian distribution (controls blur strength)
+ * @return FloatMap Blurred image with same dimensions as input
+ * 
+ * @note Larger kernel_size and sigma values produce stronger blur effect
+ * @see make_gaussian_kernel, border_extend_floatmap, apply_kernel_as_weighted_average
+ */
 FloatMap gaussian_blur(const FloatMap &floatmap, const int kernel_size, const float sigma) {
     FloatMap result = border_extend_floatmap(floatmap, kernel_size / 2);
 
@@ -394,6 +451,19 @@ float find_min_in_floatmap(const FloatMap &floatmap) {
     return min_val;
 }
 
+/**
+ * @brief Calculate edge magnitude from Sobel gradient results
+ * 
+ * Computes edge strength using the formula: magnitude = sqrt(Gx² + Gy²)
+ * Typically called after applying Sobel operators in both directions.
+ * 
+ * @param sobel_horizontal Horizontal gradient (Gx)
+ * @param sobel_vertical Vertical gradient (Gy)
+ * @return FloatMap Edge magnitude at each pixel
+ * 
+ * @note Usually used as part of Sobel edge detection workflow, rarely called standalone
+ * @see get_sobel_kernel, calculate_direction
+ */
 FloatMap calculate_magnitude(const FloatMap &sobel_horizontal, const FloatMap &sobel_vertical) {
     FloatMap magnitude(sobel_vertical.width, sobel_vertical.height);
     for (int y = 0; y < magnitude.height; y++) {
