@@ -15,52 +15,38 @@
 
 #include "stb_image_write.h"
 
-// TODO: WHY ARE THESE DEFINE BOTH HERE AND IN THE HEADER?????????
-struct Bitmap {
-    int width;
-    int height;
+#include "bitmap.h"
 
-    std::vector<std::vector<uint8_t> > data; // data[y][x] represents the pixel at (x, y)
+// implement Bitmap constructor
+Bitmap::Bitmap(int w, int h) 
+    : width(w), height(h), data(h, std::vector<uint8_t>(w, 0)) {}
 
-    Bitmap(int w, int h) : width(w), height(h), data(h, std::vector<uint8_t>(w, 0)) {
+// implement Bitmap equal operator
+bool Bitmap::operator==(const Bitmap &other) const {
+    if (width != other.width || height != other.height) {
+        return false;
     }
-
-    // Equality operator
-    bool operator==(const Bitmap &other) const {
-        // Check dimensions first
-        if (width != other.width || height != other.height) {
-            return false;
-        }
-
-        // Compare pixel by pixel
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                if (data[y][x] != other.data[y][x]) {
-                    return false;
-                }
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            if (data[y][x] != other.data[y][x]) {
+                return false;
             }
         }
-
-        return true;
     }
+    return true;
+}
 
-    // Inequality operator
-    bool operator!=(const Bitmap &other) const {
-        return !(*this == other);
-    }
-};
+// implement Bitmap not equal operator
+bool Bitmap::operator!=(const Bitmap &other) const {
+    return !(*this == other);
+}
 
-struct FloatMap {
-    int width;
-    int height;
-    std::vector<std::vector<float> > data;
-
-    FloatMap(int w, int h) : width(w), height(h), data(h, std::vector<float>(w, 0.0f)) {
-    }
-};
+// implement FloatMap constructor
+FloatMap::FloatMap(int w, int h) 
+    : width(w), height(h), data(h, std::vector<float>(w, 0.0f)) {}
 
 
-bool is_valid_floatmap(const FloatMap &floatmap, int max_output_lines = 10) {
+bool is_valid_floatmap(const FloatMap &floatmap, int max_output_lines) {
     bool valid = true;
     int output_count = 0;
     for (int y = 0; y < floatmap.height; y++) {
@@ -180,7 +166,7 @@ FloatMap border_extend_floatmap(const FloatMap &floatmap, int padding) {
     return extended;
 }
 
-FloatMap get_sobel_kernel(const bool vertical = true) {
+FloatMap get_sobel_kernel(const bool vertical) {
     FloatMap kernel(3, 3);
 
     if (vertical) {
@@ -347,7 +333,7 @@ FloatMap apply_kernel_as_sum(const FloatMap &floatmap, const FloatMap &kernel) {
     return result;
 }
 
-FloatMap make_gaussian_kernel(int size, float sigma = 1.0f) {
+FloatMap make_gaussian_kernel(int size, float sigma) {
     assert(size % 2 == 1 && "Kernel size must be odd");
 
     FloatMap kernel(size, size);
