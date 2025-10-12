@@ -12,7 +12,7 @@ namespace fs = std::filesystem;
 
 // main processing function.
 // Loads image, processes it, and then saves it
-int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
+int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     assert(blur_kernel_size % 2 == 1 && "Blur kernel size must be odd");
     assert(blur_sigma > 0 && "Blur sigma must be positive");
 
@@ -21,7 +21,7 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
     std::string image_original_path = "/image_original.png";
     std::string blurred_image_path = "/blurred_image.png";
     std::string sobel_vertical_path = "/sobel_vertical.png";
-    std::string sobel_horizontal_path =  "/sobel_horizontal.png";
+    std::string sobel_horizontal_path = "/sobel_horizontal.png";
     std::string magnitude_path = "/magnitude.png";
     std::string direction_path = "/direction.png";
 #endif
@@ -40,7 +40,7 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
 
     result->debugFrames.emplace_back(BitmapResult(image_original_path, t2 - t1, result->image, image_bitmap));
 
-    std::cout << "DEBUG: gaussian blur"<< std::endl;
+    std::cout << "DEBUG: gaussian blur" << std::endl;
 #endif
 
     // Apply Gaussian blur to reduce noise before edge detection
@@ -51,10 +51,10 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
     create_bitmap_from_floatmap(blurred_image, blurred_image_bitmap);
     t2 = getSysTime();
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, result->image,  blurred_image_bitmap));
-    std::cout << "DEBUG: sobel_vertical_image"<< std::endl;
+    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, result->image, blurred_image_bitmap));
+    std::cout << "DEBUG: sobel_vertical_image" << std::endl;
 #endif
-    
+
     // Apply vertical Sobel operator to detect horizontal edges
     // Convert result to Bitmap for visualization and save
     t1 = getSysTime();
@@ -64,8 +64,9 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
     create_bitmap_from_floatmap(sobel_vertical_image, sobel_vertical_image_bitmap);
     t2 = getSysTime();
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, result->image, sobel_vertical_image_bitmap));
-    std::cout << "DEBUG: sobel_horizontal_image"<< std::endl;
+    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, result->image,
+                                                  sobel_vertical_image_bitmap));
+    std::cout << "DEBUG: sobel_horizontal_image" << std::endl;
 #endif
 
     // Apply horizontal Sobel operator to detect vertical edges
@@ -77,8 +78,9 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
     create_bitmap_from_floatmap(sobel_horizontal_image, sobel_horizontal_image_bitmap);
     t2 = getSysTime();
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1,  result->image, sobel_vertical_image_bitmap));
-    std::cout << "DEBUG: magnitude"<< std::endl;
+    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, result->image,
+                                                  sobel_vertical_image_bitmap));
+    std::cout << "DEBUG: magnitude" << std::endl;
 #endif
 
     // Calculate edge magnitude by combining horizontal and vertical gradients
@@ -90,7 +92,7 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
     t2 = getSysTime();
 #ifdef DEBUG
     result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, result->image, magnitude_bitmap));
-    std::cout << "DEBUG: direction"<< std::endl;
+    std::cout << "DEBUG: direction" << std::endl;
 #endif
 
     // Calculate edge direction using atan2 of gradient components
@@ -103,8 +105,8 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
     t2 = getSysTime();
 
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, result->image, direction_bitmap ));
-    std::cout << "DEBUG: Create final bitmap"<< std::endl;
+    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, result->image, direction_bitmap));
+    std::cout << "DEBUG: Create final bitmap" << std::endl;
 #endif
 
     //if we are doing sobel, this is the final output.
@@ -115,7 +117,7 @@ int processImage(BitmapResult* result, int blur_kernel_size, float blur_sigma) {
     return 0;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     std::string INDIR = "./data/input";
     std::string OUTDIR = "./data/output";
     std::string TMPDIR = "./data/temp";
@@ -142,14 +144,14 @@ int main(int argc, char* argv[]) {
         blur_sigma = 0.2f;
     }
 
-    std::cout << "\n\n-----------------------"<< std::endl;
-    std::cout << "Loading images"<< std::endl;
-    std::cout << "-----------------------\n\n"<< std::endl;
+    std::cout << "\n\n-----------------------" << std::endl;
+    std::cout << "Loading images" << std::endl;
+    std::cout << "-----------------------\n\n" << std::endl;
 
     std::vector<BitmapResult> files;
 
     // Collect all the images before from input folder. Hidden files (files starting with ".") are ignored
-    for (const auto & entry : fs::directory_iterator(INDIR)) {
+    for (const auto &entry: fs::directory_iterator(INDIR)) {
         std::string filename = entry.path().filename().string();
 
         if (filename[0] != '.') {
@@ -161,34 +163,35 @@ int main(int argc, char* argv[]) {
             FloatMap image = load_image_grayscale(fullPath);
 
             Bitmap image_bitmap(image.width, image.height);
-            BitmapResult result = BitmapResult(filename,  0, image, image_bitmap);
+            BitmapResult result = BitmapResult(filename, 0, image, image_bitmap);
             files.emplace_back(result);
         }
     }
 
-    std::cout << "\n\n-----------------------"<< std::endl;
-    std::cout << "Processing images"<< std::endl;
-    std::cout << "-----------------------\n\n"<< std::endl;
+    std::cout << "\n\n-----------------------" << std::endl;
+    std::cout << "Processing images" << std::endl;
+    std::cout << "-----------------------\n\n" << std::endl;
 
     // process files
-    for (auto & file : files) {
+    for (auto &file: files) {
         std::cout << "Processing: " << file.filename << std::endl;
         processImage(&file, blur_kernel_size, blur_sigma);
     }
 
-    std::cout << "\n\n-----------------------"<< std::endl;
-    std::cout << "Saving images"<< std::endl;
-    std::cout << "-----------------------\n\n"<< std::endl;
+    std::cout << "\n\n-----------------------" << std::endl;
+    std::cout << "Saving images" << std::endl;
+    std::cout << "-----------------------\n\n" << std::endl;
 
     // save all bitmaps, then debug frames if debug is enabled
-    for (const auto & file : files) {
-        std::cout << "Saving: " << OUTDIR + "/" + file.filename << "\n\tTime taken: " << file.totalRuntime << " ms" << std::endl;
+    for (const auto &file: files) {
+        std::cout << "Saving: " << OUTDIR + "/" + file.filename << "\n\tTime taken: " << file.totalRuntime << " ms" <<
+                std::endl;
         save_bitmap_as(file.outBitmap, OUTDIR + "/" + file.filename);
 
 #ifdef DEBUG
         std::string debugTimePrint = "\tDEBUG: time breakdown: ";
         // save any debug frames
-        for (const auto & debugFrame : file.debugFrames) {
+        for (const auto &debugFrame: file.debugFrames) {
             std::cout << "DEBUG: Saving frame: " << OUTDIR + "/" + debugFrame.filename << std::endl;
             save_bitmap_as(debugFrame.outBitmap, OUTDIR + "/" + debugFrame.filename);
             debugTimePrint.append("/" + std::to_string(debugFrame.totalRuntime));
