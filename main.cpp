@@ -7,7 +7,9 @@
 #include "utils.h"
 namespace fs = std::filesystem;
 
-#define DEBUG = true;
+// Enable extra debug print and image saving.
+// Uncomment to enable, comment to disable.
+#define DEBUG
 
 
 // main processing function.
@@ -16,30 +18,25 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     assert(blur_kernel_size % 2 == 1 && "Blur kernel size must be odd");
     assert(blur_sigma > 0 && "Blur sigma must be positive");
 
-#ifdef DEBUG
     //output paths for debugging. Designed for one image only.
     std::string image_original_path = "/image_original.png";
     std::string blurred_image_path = "/blurred_image.png";
+    std::string extended_blurred_image_path = "/extended_blurred_image.png";
     std::string sobel_vertical_path = "/sobel_vertical.png";
     std::string sobel_horizontal_path = "/sobel_horizontal.png";
     std::string magnitude_path = "/magnitude.png";
     std::string direction_path = "/direction.png";
-#endif
 
     long startTime = getSysTime();
     long t1;
     long t2;
 
+    // The process here will be:
+    // 1. Create the image
+    // 2. Log how long it takes to complete that step
+    // This is repeated for every step after this point
 
 #ifdef DEBUG
-    // Save the original image for reference
-    t1 = getSysTime();
-    Bitmap image_bitmap(result->image.width, result->image.height);
-    create_bitmap_from_floatmap(result->image, image_bitmap);
-    t2 = getSysTime();
-
-    result->debugFrames.emplace_back(BitmapResult(image_original_path, t2 - t1, result->image, image_bitmap));
-
     std::cout << "DEBUG: gaussian blur" << std::endl;
 #endif
 
@@ -47,26 +44,35 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // Use kernel size 11 and sigma 0.2 for smooth blurring
     t1 = getSysTime();
     FloatMap blurred_image = gaussian_blur(result->image, blur_kernel_size, blur_sigma);
-    Bitmap blurred_image_bitmap(blurred_image.width, blurred_image.height);
-    create_bitmap_from_floatmap(blurred_image, blurred_image_bitmap);
     t2 = getSysTime();
+
+    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, result->image, blurred_image));
+
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, result->image, blurred_image_bitmap));
+    std::cout << "DEBUG: extended_blurred_image" << std::endl;
+#endif
+    // Extend blured image borders
+    t1 = getSysTime();
+    FloatMap extended_blurred_image = border_extend_floatmap(blurred_image, 1);
+    t2 = getSysTime();
+
+    result->debugFrames.emplace_back(BitmapResult(extended_blurred_image_path, t2 - t1, blurred_image,
+                                                  extended_blurred_image));
+
+#ifdef DEBUG
     std::cout << "DEBUG: sobel_vertical_image" << std::endl;
 #endif
-    FloatMap extended_blurred_image = border_extend_floatmap(blurred_image, 1);
 
     // Apply vertical Sobel operator to detect horizontal edges
     // Convert result to Bitmap for visualization and save
     t1 = getSysTime();
     FloatMap sobel_vertical_kernel = get_sobel_kernel(true);
     FloatMap sobel_vertical_image = apply_kernel_as_sum(extended_blurred_image, sobel_vertical_kernel);
-    Bitmap sobel_vertical_image_bitmap(sobel_vertical_image.width, sobel_vertical_image.height);
-    create_bitmap_from_floatmap(sobel_vertical_image, sobel_vertical_image_bitmap);
     t2 = getSysTime();
+
+    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, extended_blurred_image,
+                                                  sobel_vertical_image));
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, result->image,
-                                                  sobel_vertical_image_bitmap));
     std::cout << "DEBUG: sobel_horizontal_image" << std::endl;
 #endif
 
@@ -75,12 +81,12 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     t1 = getSysTime();
     FloatMap sobel_horizontal_kernel = get_sobel_kernel(false);
     FloatMap sobel_horizontal_image = apply_kernel_as_sum(extended_blurred_image, sobel_horizontal_kernel);
-    Bitmap sobel_horizontal_image_bitmap(sobel_horizontal_image.width, sobel_horizontal_image.height);
-    create_bitmap_from_floatmap(sobel_horizontal_image, sobel_horizontal_image_bitmap);
     t2 = getSysTime();
+
+    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, extended_blurred_image,
+                                                  sobel_horizontal_image));
+
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, result->image,
-                                                  sobel_vertical_image_bitmap));
     std::cout << "DEBUG: magnitude" << std::endl;
 #endif
 
@@ -88,11 +94,11 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // Magnitude represents the strength of edges at each pixel location
     t1 = getSysTime();
     FloatMap magnitude = calculate_magnitude(sobel_horizontal_image, sobel_vertical_image);
-    Bitmap magnitude_bitmap(magnitude.width, magnitude.height);
-    create_bitmap_from_floatmap(magnitude, magnitude_bitmap);
     t2 = getSysTime();
+
+    // no support for multi input... we probably wont need it...
+    result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, sobel_horizontal_image, magnitude));
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, result->image, magnitude_bitmap));
     std::cout << "DEBUG: direction" << std::endl;
 #endif
 
@@ -101,23 +107,35 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // This is not required in sobel. It is required in canny.
     t1 = getSysTime();
     FloatMap direction = calculate_direction(sobel_horizontal_image, sobel_vertical_image);
-    Bitmap direction_bitmap(direction.width, direction.height);
-    create_bitmap_from_floatmap(direction, direction_bitmap);
     t2 = getSysTime();
 
+    // no support for multi input... we probably wont need it...
+    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, sobel_horizontal_image, direction));
 #ifdef DEBUG
-    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, result->image, direction_bitmap));
     std::cout << "DEBUG: Create final bitmap" << std::endl;
 #endif
 
     //if we are doing sobel, this is the final output.
     //if we want to go canny, we need to do more processing.
-    create_bitmap_from_floatmap(magnitude, result->outBitmap);
+    result->outImage = magnitude;
     result->totalRuntime = getSysTime() - startTime;
+
+
+#ifdef DEBUG
+    // Save the original image for reference
+    result->debugFrames.emplace_back(BitmapResult(image_original_path, 0L, result->image, result->image));
+#endif
+
 
     return 0;
 }
 
+/**
+ * Main program entry point
+ * @param argc M
+ * @param argv
+ * @return
+ */
 int main(int argc, char *argv[]) {
     std::string INDIR = "./data/input";
     std::string OUTDIR = "./data/output";
@@ -137,12 +155,16 @@ int main(int argc, char *argv[]) {
     if (blur_kernel_size == -1) {
         std::cout << "WARNING: No blur_kernel_size specified. Using default value 11" << std::endl;
         blur_kernel_size = 11;
+        std::cout << "Usage: whyareyourunning <blur kernel size> <blur sigma size>" << std::endl;
+        std::cout << "Example: whyareyourunning 11 0.2" << std::endl;
     }
 
 
     if (blur_sigma == -1.0f) {
         std::cout << "WARNING: No blur_sigma specified. Using default value 0.2" << std::endl;
         blur_sigma = 0.2f;
+        std::cout << "Usage: whyareyourunning <blur kernel size> <blur sigma size>" << std::endl;
+        std::cout << "Example: whyareyourunning 11 0.2" << std::endl;
     }
 
     std::cout << "\n\n-----------------------" << std::endl;
@@ -163,8 +185,8 @@ int main(int argc, char *argv[]) {
             // Load the input image and convert to grayscale FloatMap
             FloatMap image = load_image_grayscale(fullPath);
 
-            Bitmap image_bitmap(image.width, image.height);
-            BitmapResult result = BitmapResult(filename, 0, image, image_bitmap);
+            FloatMap imageOutput(image.width, image.height);
+            BitmapResult result = BitmapResult(filename, 0, image, imageOutput);
             files.emplace_back(result);
         }
     }
@@ -187,14 +209,14 @@ int main(int argc, char *argv[]) {
     for (const auto &file: files) {
         std::cout << "Saving: " << OUTDIR + "/" + file.filename << "\n\tTime taken: " << file.totalRuntime << " ms" <<
                 std::endl;
-        save_bitmap_as(file.outBitmap, OUTDIR + "/" + file.filename);
+        save_floatmap_as(file.outImage, OUTDIR + "/" + file.filename);
 
 #ifdef DEBUG
         std::string debugTimePrint = "\tDEBUG: time breakdown: ";
         // save any debug frames
         for (const auto &debugFrame: file.debugFrames) {
             std::cout << "DEBUG: Saving frame: " << OUTDIR + "/" + debugFrame.filename << std::endl;
-            save_bitmap_as(debugFrame.outBitmap, OUTDIR + "/" + debugFrame.filename);
+            save_floatmap_as(debugFrame.outImage, OUTDIR + "/" + debugFrame.filename);
             debugTimePrint.append("/" + std::to_string(debugFrame.totalRuntime));
         }
         std::cout << debugTimePrint << std::endl;
