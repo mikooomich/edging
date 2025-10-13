@@ -13,7 +13,6 @@ namespace fs = std::filesystem;
 
 
 // main processing function.
-// Loads image, processes it, and then saves it
 int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     assert(blur_kernel_size % 2 == 1 && "Blur kernel size must be odd");
     assert(blur_sigma > 0 && "Blur sigma must be positive");
@@ -193,6 +192,7 @@ int main(int argc, char *argv[]) {
 
     std::cout << "\n\n-----------------------" << std::endl;
     std::cout << "Processing images" << std::endl;
+    std::cout << "Using blur_kernel_size = " << blur_kernel_size << ", blur_sigma = " << blur_sigma << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;
 
     // process files
