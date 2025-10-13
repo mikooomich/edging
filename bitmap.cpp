@@ -47,6 +47,11 @@ bool is_valid_floatmap(const FloatMap &floatmap, int max_output_lines) {
     return valid;
 }
 
+/**
+ * Load an image, convert it to grayscale
+ * @param filename
+ * @return
+ */
 FloatMap load_image_grayscale(const std::string &filename) {
     int width, height, channels;
 
@@ -82,7 +87,11 @@ FloatMap load_image_grayscale(const std::string &filename) {
     return floatmap;
 }
 
-
+/**
+ * Save bitmap to as a PNG file
+ * @param bitmap
+ * @param filename
+ */
 void save_bitmap_as(const Bitmap &bitmap, const std::string &filename) {
     // Convert 2D array to 1D array
     std::vector<uint8_t> pixels;
@@ -106,6 +115,11 @@ void save_bitmap_as(const Bitmap &bitmap, const std::string &filename) {
     // So no need to delete temp file separately
 }
 
+/**
+ * Save floatmap to as a PNG file
+ * @param floatmap
+ * @param filename
+ */
 void save_floatmap_as(const FloatMap &floatmap, const std::string &filename) {
     // Check FloatMap validity
     // TODO: fix bug causing this error
