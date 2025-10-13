@@ -13,11 +13,6 @@ struct Bitmap {
     std::vector<std::vector<uint8_t>> data;
     
     Bitmap(int w, int h);
-
-    bool operator==(const Bitmap& other) const;
-    bool operator!=(const Bitmap& other) const;
-
-    
 };
 
 // For storing convolution kernels with negative values (e.g., Sobel)
@@ -51,7 +46,6 @@ FloatMap border_extend_floatmap(const FloatMap& floatmap, int padding);
 // void display_bitmap(const Bitmap& bitmap);
 void save_bitmap_as(const Bitmap& bitmap, const std::string& filename);
 void save_floatmap_as(const FloatMap& floatmap, const std::string& filename);
-FloatMap apply_kernel(const Bitmap& bitmap, const FloatMap& kernel); 
 FloatMap apply_kernel_as_weighted_average(const FloatMap& floatmap, const FloatMap& kernel);
 FloatMap apply_kernel_as_sum(const FloatMap& floatmap, const FloatMap& kernel);
 FloatMap make_gaussian_kernel(int size, float sigma = 1.0f);
