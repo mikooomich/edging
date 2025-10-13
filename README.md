@@ -6,6 +6,8 @@ This is a serious edging project.
 
 1. Copy the folder `__data_template` to the project's root directory. Rename it to `data`.
 2. Put image(s) to process is `data/input/`
+   - IMPORTANT: all images that begin with `.` will be ignored
+   - If you are using the `__data_template` folder, the 50mp images is ignored. Rename the file to remove the prefix `.` if you wish to use this. It is slow.
 3. Compile and run the project
 
 ```bash
@@ -13,6 +15,11 @@ This is a serious edging project.
 g++ main.cpp bitmap.cpp -std=c++17 -o whyareyourunning
 # run
 ./whyareyourunning
+
+# run with Extra arguments (optional)
+# whyareyourunning <blur kernel size> <blur sigma size>
+# blur kernel size defines how large the Gaussian kernel will be, sigma size defines the blur strength
+whyareyourunning 11 0.2    # kernel size of 11, sigma size of 0.2
 ```
 
 Or all together
