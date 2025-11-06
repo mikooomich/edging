@@ -3,14 +3,18 @@
 #include <cmath>
 #include <iostream>
 #include <filesystem>
+#include <future>
 
 #include "utils.h"
 namespace fs = std::filesystem;
 
-// Enable extra debug print and image saving.
+// Enable extra debug print
 // Uncomment to enable, comment to disable.
 #define DEBUG
 
+// Enable saving of debug frames. Useful for checking algorithm correctness, really not useful otherwise
+// Uncomment to enable, comment to disable.
+// #define SAVE_PROCESS_FRAMES
 
 // main processing function.
 int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
@@ -25,6 +29,7 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     std::string sobel_horizontal_path = "/sobel_horizontal.png";
     std::string magnitude_path = "/magnitude.png";
     std::string direction_path = "/direction.png";
+    FloatMap dudFloatMap = make_gaussian_kernel(3, 0.1); // for when SAVE_PROCESS_FRAMES is off
 
     long startTime = getSysTime();
     long t1;
@@ -45,7 +50,12 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     FloatMap blurred_image = gaussian_blur(result->image, blur_kernel_size, blur_sigma);
     t2 = getSysTime();
 
+#ifdef SAVE_PROCESS_FRAMES
     result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, result->image, blurred_image));
+#else
+    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, dudFloatMap, dudFloatMap));
+#endif
+
 
 #ifdef DEBUG
     std::cout << "DEBUG: extended_blurred_image" << std::endl;
@@ -55,8 +65,13 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     FloatMap extended_blurred_image = border_extend_floatmap(blurred_image, 1);
     t2 = getSysTime();
 
+#ifdef SAVE_PROCESS_FRAMES
     result->debugFrames.emplace_back(BitmapResult(extended_blurred_image_path, t2 - t1, blurred_image,
                                                   extended_blurred_image));
+#else
+    result->debugFrames.emplace_back(BitmapResult(extended_blurred_image_path, t2 - t1, dudFloatMap, dudFloatMap));
+#endif
+
 
 #ifdef DEBUG
     std::cout << "DEBUG: sobel_vertical_image" << std::endl;
@@ -69,8 +84,14 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     FloatMap sobel_vertical_image = apply_kernel_as_sum(extended_blurred_image, sobel_vertical_kernel);
     t2 = getSysTime();
 
+#ifdef SAVE_PROCESS_FRAMES
     result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, extended_blurred_image,
                                                   sobel_vertical_image));
+#else
+    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, dudFloatMap, dudFloatMap));
+#endif
+
+
 #ifdef DEBUG
     std::cout << "DEBUG: sobel_horizontal_image" << std::endl;
 #endif
@@ -82,8 +103,14 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     FloatMap sobel_horizontal_image = apply_kernel_as_sum(extended_blurred_image, sobel_horizontal_kernel);
     t2 = getSysTime();
 
+#ifdef SAVE_PROCESS_FRAMES
     result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, extended_blurred_image,
                                                   sobel_horizontal_image));
+#else
+    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, dudFloatMap, dudFloatMap));
+
+#endif
+
 
 #ifdef DEBUG
     std::cout << "DEBUG: magnitude" << std::endl;
@@ -96,7 +123,16 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     t2 = getSysTime();
 
     // no support for multi input... we probably wont need it...
+
+#ifdef SAVE_PROCESS_FRAMES
     result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, sobel_horizontal_image, magnitude));
+
+#else
+    result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, dudFloatMap, dudFloatMap));
+
+#endif
+
+
 #ifdef DEBUG
     std::cout << "DEBUG: direction" << std::endl;
 #endif
@@ -108,8 +144,17 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     FloatMap direction = calculate_direction(sobel_horizontal_image, sobel_vertical_image);
     t2 = getSysTime();
 
+
+#ifdef SAVE_PROCESS_FRAMES
     // no support for multi input... we probably wont need it...
     result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, sobel_horizontal_image, direction));
+
+#else
+    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, dudFloatMap, dudFloatMap));
+
+#endif
+
+
 #ifdef DEBUG
     std::cout << "DEBUG: Create final bitmap" << std::endl;
 #endif
@@ -138,7 +183,6 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
 int main(int argc, char *argv[]) {
     std::string INDIR = "./data/input";
     std::string OUTDIR = "./data/output";
-    std::string TMPDIR = "./data/temp";
 
     // args from program args
     int blur_kernel_size = -1;
@@ -170,25 +214,38 @@ int main(int argc, char *argv[]) {
     std::cout << "Loading images" << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;
 
-    std::vector<BitmapResult> files;
+    // ----- Begin loading images section -----
+    // Loading/decoding images is not the focus of the project, so the parallelism in this section is just to make loading large
+    // image datasets easier. Do not grade this section.
+
+    // WARNING: All images are loaded as bitmaps into RAM and will stay until the program terminates
+    // TODO: figure out how to allocate and deallocate memory for progress frames...
+
+    std::vector<std::future<BitmapResult> > imageLoadingJobs;
 
     // Collect all the images before from input folder. Hidden files (files starting with ".") are ignored
     for (const auto &entry: fs::directory_iterator(INDIR)) {
         std::string filename = entry.path().filename().string();
-
         if (filename[0] != '.') {
             std::string fullPath = entry.path().string();
+#ifdef DEBUG
             std::cout << "Found: " << filename << " (" << fullPath << ")" << std::endl;
+#endif
 
-
-            // Load the input image and convert to grayscale FloatMap
-            FloatMap image = load_image_grayscale(fullPath);
-
-            FloatMap imageOutput(image.width, image.height);
-            BitmapResult result = BitmapResult(filename, 0, image, imageOutput);
-            files.emplace_back(result);
+            imageLoadingJobs.push_back(std::async(std::launch::async, [=]() {
+                // Load the input image and convert to grayscale FloatMap
+                FloatMap image = load_image_grayscale(fullPath);
+                FloatMap imageOutput(image.width, image.height);
+                return BitmapResult(filename, 0, image, imageOutput);
+            }));
         }
     }
+
+    std::vector<BitmapResult> files;
+    for (auto &fut: imageLoadingJobs)
+        files.emplace_back(fut.get());
+    // ----- End loading images section-----
+
 
     std::cout << "\n\n-----------------------" << std::endl;
     std::cout << "Processing images" << std::endl;
@@ -206,21 +263,26 @@ int main(int argc, char *argv[]) {
     std::cout << "-----------------------\n\n" << std::endl;
 
     // save all bitmaps, then debug frames if debug is enabled
+    std::vector<std::future<void>> imageSavingJobs;
     for (const auto &file: files) {
-        std::cout << "Saving: " << OUTDIR + "/" + file.filename << "\n\tTime taken: " << file.totalRuntime << " ms" <<
-                std::endl;
-        save_floatmap_as(file.outImage, OUTDIR + "/" + file.filename);
+        imageSavingJobs.push_back(std::async(std::launch::async, [=]() {
+            std::cout << "Saving: " << OUTDIR + "/" + file.filename << "\n\tTime taken: " << file.totalRuntime << " ms"
+                    << std::endl;
+            save_floatmap_as(file.outImage, OUTDIR + "/" + file.filename);
 
 #ifdef DEBUG
-        std::string debugTimePrint = "\tDEBUG: time breakdown: ";
-        // save any debug frames
-        for (const auto &debugFrame: file.debugFrames) {
-            std::cout << "DEBUG: Saving frame: " << OUTDIR + "/" + debugFrame.filename << std::endl;
-            save_floatmap_as(debugFrame.outImage, OUTDIR + "/" + debugFrame.filename);
-            debugTimePrint.append("/" + std::to_string(debugFrame.totalRuntime));
-        }
-        std::cout << debugTimePrint << std::endl;
+            std::string debugTimePrint = "\tDEBUG: time breakdown: ";
+            // save any debug frames
+            for (const auto &debugFrame: file.debugFrames) {
+#ifdef SAVE_PROCESS_FRAMES
+                std::cout << "DEBUG: Saving frame: " << OUTDIR + "/" + debugFrame.filename << std::endl;
+                save_floatmap_as(debugFrame.outImage, OUTDIR + "/" + debugFrame.filename);
 #endif
+                debugTimePrint.append("/" + std::to_string(debugFrame.totalRuntime));
+            }
+            std::cout << debugTimePrint << std::endl; // TODO: Unlabeled. label if we keep this...
+#endif
+        }));
     }
 
     return 0;
