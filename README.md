@@ -6,9 +6,10 @@ This is a serious edging project.
 
 1. Copy the folder `__data_template` to the project's root directory. Rename it to `data`.
 2. Put image(s) to process is `data/input/`
-   - IMPORTANT: all images that begin with `.` will be ignored
-   - If you are using the `__data_template` folder, the 50mp images is ignored. Rename the file to remove the prefix `.` if you wish to use this. It is slow.
-   - No exotic image formats please. Jpeg and PNG are recommended.
+    - IMPORTANT: all images that begin with `.` will be ignored
+    - If you are using the `__data_template` folder, the 50mp images is ignored. Rename the file to remove the prefix
+      `.` if you wish to use this. It is slow.
+    - No exotic image formats please. Jpeg and PNG are recommended.
 3. Compile and run the project
 
 ```bash
@@ -37,3 +38,14 @@ g++ main.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning && ./whyareyour
 (If you are grading this project, plz ignore, this is just for us to make our life easier during development)
 
 You may use cmake, clion, etc. if you wish to. For clion, the data directory is `edging\cmake-build-debug\data`
+
+## Important notes when running
+
+All images are loaded into memory *before* and processing. For large datasets, you should be aware of your memory usage.
+
+For example, 355 1920x1080 images use ~2.8 GB of memory overall (including overhead).
+
+When running, up to an additional `[num threads] * [pixel count] * 3 * 7` bytes of memory will be used. 
+- For a single 1920x1080 image and single thread exception, this equates to roughly 43.54 MB.
+
+SAVE_PROCESS_FRAMES is intended for algorithm debugging. Do not enable otherwise. This will roughly 7x your memory usage after execution as all images are saved.

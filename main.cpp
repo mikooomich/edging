@@ -17,10 +17,8 @@ namespace fs = std::filesystem;
 // #define SAVE_PROCESS_FRAMES
 
 // main processing function.
-int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
-    assert(blur_kernel_size % 2 == 1 && "Blur kernel size must be odd");
-    assert(blur_sigma > 0 && "Blur sigma must be positive");
-
+int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const FloatMap &sobelKernelvert,
+                 const FloatMap &sobelKernelHoriz) {
     //output paths for debugging. Designed for one image only.
     std::string image_original_path = "/image_original.png";
     std::string blurred_image_path = "/blurred_image.png";
@@ -29,7 +27,7 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     std::string sobel_horizontal_path = "/sobel_horizontal.png";
     std::string magnitude_path = "/magnitude.png";
     std::string direction_path = "/direction.png";
-    FloatMap dudFloatMap = make_gaussian_kernel(3, 0.1); // for when SAVE_PROCESS_FRAMES is off
+    FloatMap dudFloatMap = FloatMap(0, 0); // for when SAVE_PROCESS_FRAMES is off
 
     long startTime = getSysTime();
     long t1;
@@ -47,13 +45,13 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // Apply Gaussian blur to reduce noise before edge detection
     // Use kernel size 11 and sigma 0.2 for smooth blurring
     t1 = getSysTime();
-    FloatMap blurred_image = gaussian_blur(result->image, blur_kernel_size, blur_sigma);
+    FloatMap blurred_image = gaussian_blur(result->image, gaussianKernel);
     t2 = getSysTime();
 
 #ifdef SAVE_PROCESS_FRAMES
-    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, result->image, blurred_image));
+    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, blurred_image));
 #else
-    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, dudFloatMap, dudFloatMap));
+    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, dudFloatMap));
 #endif
 
 
@@ -66,10 +64,9 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     t2 = getSysTime();
 
 #ifdef SAVE_PROCESS_FRAMES
-    result->debugFrames.emplace_back(BitmapResult(extended_blurred_image_path, t2 - t1, blurred_image,
-                                                  extended_blurred_image));
+    result->debugFrames.emplace_back(BitmapResult(extended_blurred_image_path, t2 - t1, extended_blurred_image));
 #else
-    result->debugFrames.emplace_back(BitmapResult(extended_blurred_image_path, t2 - t1, dudFloatMap, dudFloatMap));
+    result->debugFrames.emplace_back(BitmapResult(extended_blurred_image_path, t2 - t1, dudFloatMap));
 #endif
 
 
@@ -80,15 +77,13 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // Apply vertical Sobel operator to detect horizontal edges
     // Convert result to Bitmap for visualization and save
     t1 = getSysTime();
-    FloatMap sobel_vertical_kernel = get_sobel_kernel(true);
-    FloatMap sobel_vertical_image = apply_kernel_as_sum(extended_blurred_image, sobel_vertical_kernel);
+    FloatMap sobel_vertical_image = apply_kernel_as_sum(extended_blurred_image, sobelKernelvert);
     t2 = getSysTime();
 
 #ifdef SAVE_PROCESS_FRAMES
-    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, extended_blurred_image,
-                                                  sobel_vertical_image));
+    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, sobel_vertical_image));
 #else
-    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, dudFloatMap, dudFloatMap));
+    result->debugFrames.emplace_back(BitmapResult(sobel_vertical_path, t2 - t1, dudFloatMap));
 #endif
 
 
@@ -99,16 +94,13 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // Apply horizontal Sobel operator to detect vertical edges
     // Convert result to Bitmap for visualization and save
     t1 = getSysTime();
-    FloatMap sobel_horizontal_kernel = get_sobel_kernel(false);
-    FloatMap sobel_horizontal_image = apply_kernel_as_sum(extended_blurred_image, sobel_horizontal_kernel);
+    FloatMap sobel_horizontal_image = apply_kernel_as_sum(extended_blurred_image, sobelKernelHoriz);
     t2 = getSysTime();
 
 #ifdef SAVE_PROCESS_FRAMES
-    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, extended_blurred_image,
-                                                  sobel_horizontal_image));
+    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, sobel_horizontal_image));
 #else
-    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, dudFloatMap, dudFloatMap));
-
+    result->debugFrames.emplace_back(BitmapResult(sobel_horizontal_path, t2 - t1, dudFloatMap));
 #endif
 
 
@@ -125,11 +117,10 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // no support for multi input... we probably wont need it...
 
 #ifdef SAVE_PROCESS_FRAMES
-    result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, sobel_horizontal_image, magnitude));
+    result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, magnitude));
 
 #else
-    result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, dudFloatMap, dudFloatMap));
-
+    result->debugFrames.emplace_back(BitmapResult(magnitude_path, t2 - t1, dudFloatMap));
 #endif
 
 
@@ -141,19 +132,23 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
     // Direction indicates the orientation of edges at each pixel
     // This is not required in sobel. It is required in canny.
     t1 = getSysTime();
-    FloatMap direction = calculate_direction(sobel_horizontal_image, sobel_vertical_image);
+    FloatMap direction = calculate_direction(sobel_horizontal_image, dudFloatMap);
     t2 = getSysTime();
 
 
 #ifdef SAVE_PROCESS_FRAMES
     // no support for multi input... we probably wont need it...
-    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, sobel_horizontal_image, direction));
+    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, direction));
 
 #else
-    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, dudFloatMap, dudFloatMap));
-
+    result->debugFrames.emplace_back(BitmapResult(direction_path, t2 - t1, dudFloatMap));
 #endif
 
+
+#ifdef SAVE_PROCESS_FRAMES
+    // Save the original image for reference
+    result->debugFrames.emplace_back(BitmapResult(image_original_path, 0L, result->image));
+#endif
 
 #ifdef DEBUG
     std::cout << "DEBUG: Create final bitmap" << std::endl;
@@ -161,15 +156,14 @@ int processImage(BitmapResult *result, int blur_kernel_size, float blur_sigma) {
 
     //if we are doing sobel, this is the final output.
     //if we want to go canny, we need to do more processing.
-    result->outImage = magnitude;
+
+    // reuse the input image to save the output. It is assumed both are the same size, or else something is wrong with the algorithm
+    for (int y = 0; y < result->image.height; y++) {
+        for (int x = 0; x < result->image.width; x++) {
+            result->image.data[y][x] = magnitude.data[y][x];
+        }
+    }
     result->totalRuntime = getSysTime() - startTime;
-
-
-#ifdef DEBUG
-    // Save the original image for reference
-    result->debugFrames.emplace_back(BitmapResult(image_original_path, 0L, result->image, result->image));
-#endif
-
 
     return 0;
 }
@@ -210,6 +204,42 @@ int main(int argc, char *argv[]) {
         std::cout << "Example: whyareyourunning 11 0.2" << std::endl;
     }
 
+    // create kernels. These are not dependent on any other parameters and are read-only
+    assert(blur_kernel_size % 2 == 1 && "Blur kernel size must be odd");
+    assert(blur_sigma > 0 && "Blur sigma must be positive");
+    FloatMap gaussianKernel = make_gaussian_kernel(blur_kernel_size, blur_sigma);
+    FloatMap sobelKernelVert = FloatMap(3, 3);
+    FloatMap sobelKernelHoriz = FloatMap(3, 3);
+
+    // vertical
+    // 1  2  1
+    // 0  0  0
+    //-1 -2 -1
+    sobelKernelVert.data[0][0] = 1;
+    sobelKernelVert.data[0][1] = 2;
+    sobelKernelVert.data[0][2] = 1;
+    sobelKernelVert.data[1][0] = 0;
+    sobelKernelVert.data[1][1] = 0;
+    sobelKernelVert.data[1][2] = 0;
+    sobelKernelVert.data[2][0] = -1;
+    sobelKernelVert.data[2][1] = -2;
+    sobelKernelVert.data[2][2] = -1;
+
+    // horizontal
+    // 1 0 -1
+    // 2 0 -2
+    // 1 0 -1
+    sobelKernelHoriz.data[0][0] = 1;
+    sobelKernelHoriz.data[0][1] = 0;
+    sobelKernelHoriz.data[0][2] = -1;
+    sobelKernelHoriz.data[1][0] = 2;
+    sobelKernelHoriz.data[1][1] = 0;
+    sobelKernelHoriz.data[1][2] = -2;
+    sobelKernelHoriz.data[2][0] = 1;
+    sobelKernelHoriz.data[2][1] = 0;
+    sobelKernelHoriz.data[2][2] = -1;
+
+
     std::cout << "\n\n-----------------------" << std::endl;
     std::cout << "Loading images" << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;
@@ -235,13 +265,13 @@ int main(int argc, char *argv[]) {
             imageLoadingJobs.push_back(std::async(std::launch::async, [=]() {
                 // Load the input image and convert to grayscale FloatMap
                 FloatMap image = load_image_grayscale(fullPath);
-                FloatMap imageOutput(image.width, image.height);
-                return BitmapResult(filename, 0, image, imageOutput);
+                return BitmapResult(filename, 0, image);
             }));
         }
     }
 
     std::vector<BitmapResult> files;
+    files.reserve(imageLoadingJobs.size());
     for (auto &fut: imageLoadingJobs)
         files.emplace_back(fut.get());
     // ----- End loading images section-----
@@ -255,7 +285,7 @@ int main(int argc, char *argv[]) {
     // process files
     for (auto &file: files) {
         std::cout << "Processing: " << file.filename << std::endl;
-        processImage(&file, blur_kernel_size, blur_sigma);
+        processImage(&file, gaussianKernel, sobelKernelVert, sobelKernelHoriz);
     }
 
     std::cout << "\n\n-----------------------" << std::endl;
@@ -263,12 +293,13 @@ int main(int argc, char *argv[]) {
     std::cout << "-----------------------\n\n" << std::endl;
 
     // save all bitmaps, then debug frames if debug is enabled
-    std::vector<std::future<void>> imageSavingJobs;
+    std::vector<std::future<void> > imageSavingJobs;
+    imageSavingJobs.reserve(files.size());
     for (const auto &file: files) {
         imageSavingJobs.push_back(std::async(std::launch::async, [=]() {
             std::cout << "Saving: " << OUTDIR + "/" + file.filename << "\n\tTime taken: " << file.totalRuntime << " ms"
                     << std::endl;
-            save_floatmap_as(file.outImage, OUTDIR + "/" + file.filename);
+            save_floatmap_as(file.image, OUTDIR + "/" + file.filename);
 
 #ifdef DEBUG
             std::string debugTimePrint = "\tDEBUG: time breakdown: ";
@@ -276,7 +307,7 @@ int main(int argc, char *argv[]) {
             for (const auto &debugFrame: file.debugFrames) {
 #ifdef SAVE_PROCESS_FRAMES
                 std::cout << "DEBUG: Saving frame: " << OUTDIR + "/" + debugFrame.filename << std::endl;
-                save_floatmap_as(debugFrame.outImage, OUTDIR + "/" + debugFrame.filename);
+                save_floatmap_as(debugFrame.image, OUTDIR + "/" + debugFrame.filename);
 #endif
                 debugTimePrint.append("/" + std::to_string(debugFrame.totalRuntime));
             }

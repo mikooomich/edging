@@ -26,7 +26,6 @@ Bitmap::Bitmap(int w, int h)
 FloatMap::FloatMap(int w, int h) 
     : width(w), height(h), data(h, std::vector<float>(w, 0.0f)) {}
 
-
 bool is_valid_floatmap(const FloatMap &floatmap, int max_output_lines) {
     bool valid = true;
     int output_count = 0;
@@ -64,25 +63,18 @@ FloatMap load_image_grayscale(const std::string &filename) {
     }
 
     // Create Bitmap object
-    Bitmap bitmap(width, height);
+    FloatMap floatmap(width, height);
 
     // Convert 1D array to 2D array (data[y][x])
+    // Convert Bitmap to FloatMap (normalize to 0-1 range)
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            bitmap.data[y][x] = img_data[y * width + x];
+            floatmap.data[y][x] = img_data[y * width + x] / 255.0f;
         }
     }
 
     // Free memory allocated by stb_image
     stbi_image_free(img_data);
-
-    // Convert Bitmap to FloatMap (normalize to 0-1 range)
-    FloatMap floatmap(width, height);
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            floatmap.data[y][x] = bitmap.data[y][x] / 255.0f;
-        }
-    }
 
     return floatmap;
 }
@@ -133,6 +125,18 @@ void save_floatmap_as(const FloatMap &floatmap, const std::string &filename) {
     save_bitmap_as(bitmap, filename);
 }
 
+FloatMap copy_floatmap(const FloatMap &floatmap) {
+    FloatMap newFloatmap(floatmap.width, floatmap.height);
+
+    for (int y = 0; y < floatmap.height; y++) {
+        for (int x = 0; x < floatmap.width; x++) {
+            newFloatmap.data[y][x] = floatmap.data[y][x];
+        }
+    }
+
+    return newFloatmap;
+}
+
 
 FloatMap border_extend_floatmap(const FloatMap &floatmap, int padding) {
     // Create extended floatmap (width and height increased by 2*padding)
@@ -154,35 +158,6 @@ FloatMap border_extend_floatmap(const FloatMap &floatmap, int padding) {
     }
 
     return extended;
-}
-
-FloatMap get_sobel_kernel(const bool vertical) {
-    FloatMap kernel(3, 3);
-
-    if (vertical) {
-        // Sobel vertical edge detection (detects horizontal edges)
-        kernel.data[0][0] = 1;
-        kernel.data[0][1] = 2;
-        kernel.data[0][2] = 1;
-        kernel.data[1][0] = 0;
-        kernel.data[1][1] = 0;
-        kernel.data[1][2] = 0;
-        kernel.data[2][0] = -1;
-        kernel.data[2][1] = -2;
-        kernel.data[2][2] = -1;
-    } else {
-        // Sobel horizontal edge detection (detects vertical edges)
-        kernel.data[0][0] = 1;
-        kernel.data[0][1] = 0;
-        kernel.data[0][2] = -1;
-        kernel.data[1][0] = 2;
-        kernel.data[1][1] = 0;
-        kernel.data[1][2] = -2;
-        kernel.data[2][0] = 1;
-        kernel.data[2][1] = 0;
-        kernel.data[2][2] = -1;
-    }
-    return kernel;
 }
 
 /**
@@ -314,11 +289,8 @@ FloatMap make_gaussian_kernel(int size, float sigma) {
  * @note Larger kernel_size and sigma values produce stronger blur effect
  * @see make_gaussian_kernel, border_extend_floatmap, apply_kernel_as_weighted_average
  */
-FloatMap gaussian_blur(const FloatMap &floatmap, const int kernel_size, const float sigma) {
-    FloatMap result = border_extend_floatmap(floatmap, kernel_size / 2);
-
-    // Create Gaussian kernel
-    FloatMap kernel = make_gaussian_kernel(kernel_size, sigma);
+FloatMap gaussian_blur(const FloatMap &floatmap, const FloatMap& kernel) {
+    FloatMap result = border_extend_floatmap(floatmap, kernel.width / 2);
 
     // Apply Gaussian blur
     result = apply_kernel_as_weighted_average(result, kernel);
