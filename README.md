@@ -19,9 +19,10 @@ g++ main.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning
 ./whyareyourunning
 
 # run with Extra arguments (optional)
-# whyareyourunning <blur kernel size> <blur sigma size>
+# whyareyourunning <variant> <blur kernel size> <blur sigma size>
 # blur kernel size defines how large the Gaussian kernel will be, sigma size defines the blur strength
-./whyareyourunning 11 0.2    # kernel size of 11, sigma size of 0.2
+# Variants: 1 --> sequential. 2 --> openmp/cuda. 3 --> openmpi
+./whyareyourunning 1 11 0.2    # run sequential, kernel size of 11, sigma size of 0.2
 ```
 
 Or all together
