@@ -11,8 +11,7 @@ endif()
 
 
 add_executable(main main.cpp
-        sequential/sequential.cpp
-        sequential/sequential.h)
-
-add_subdirectory(common)
-target_link_libraries(main PRIVATE common)
+        sequential.cpp
+        bitmap.cpp
+        utils.cpp
+)
