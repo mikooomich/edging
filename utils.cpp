@@ -11,13 +11,26 @@
 #include "bitmap.h"
 namespace fs = std::filesystem;
 
+// Enable extra debug print
+// Uncomment to enable, comment to disable.
+#define DEBUG
+
+// Enable saving of debug frames. Useful for checking algorithm correctness, really not useful otherwise
+// Uncomment to enable, comment to disable.
+// #define SAVE_PROCESS_FRAMES
 
 long getSysTime() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).
             count();
 }
 
-DataSet prepareDataset(int blur_kernel_size, float blur_sigma, std::string indir, std::string outdir) {
+/**
+ * Return The required data to setup the algorithms.
+ *
+ * kernelsOnly = true will only return the kernels
+ * kernelsOnly = false will return the kernels PLUS load all the images from disk into memory
+ */
+DataSet prepareDataset(int blur_kernel_size, float blur_sigma, std::string indir, bool kernelsOnly) {
     // create kernels. These are not dependent on any other parameters and are read-only
     assert(blur_kernel_size % 2 == 1 && "Blur kernel size must be odd");
     assert(blur_sigma > 0 && "Blur sigma must be positive");
@@ -53,7 +66,11 @@ DataSet prepareDataset(int blur_kernel_size, float blur_sigma, std::string indir
     sobelKernelHoriz.data[2][1] = 0;
     sobelKernelHoriz.data[2][2] = -1;
 
+    if (kernelsOnly) {
+        return DataSet(gaussianKernel, sobelKernelVert, sobelKernelHoriz);
+    }
 
+    // now load all images in the input folder
     std::cout << "\n\n-----------------------" << std::endl;
     std::cout << "Loading images" << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;
@@ -94,7 +111,7 @@ DataSet prepareDataset(int blur_kernel_size, float blur_sigma, std::string indir
 }
 
 
-void saveResult(std::vector<BitmapResult> files, std::string outdir) {
+void saveResult(std::vector<BitmapResult> &files, std::string outdir) {
     std::cout << "\n\n-----------------------" << std::endl;
     std::cout << "Saving images" << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;

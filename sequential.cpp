@@ -5,6 +5,9 @@
 #include "bitmap.h"
 #include "utils.h"
 
+// Enable extra debug print
+// Uncomment to enable, comment to disable.
+#define DEBUG
 
 // main processing function.
 int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const FloatMap &sobelKernelvert,
@@ -146,7 +149,6 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
 
     //if we are doing sobel, this is the final output.
     //if we want to go canny, we need to do more processing.
-
     // reuse the input image to save the output. It is assumed both are the same size, or else something is wrong with the algorithm
     for (int y = 0; y < result->image.height; y++) {
         for (int x = 0; x < result->image.width; x++) {
@@ -159,7 +161,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
 }
 
 
-void runSequential( std::vector<BitmapResult> files,  const FloatMap &gaussianKernel, const FloatMap &sobelKernelVert, const FloatMap &sobelKernelHoriz) {
+void runSequential( std::vector<BitmapResult> &files,  const FloatMap &gaussianKernel, const FloatMap &sobelKernelVert, const FloatMap &sobelKernelHoriz) {
     // process files
     for (auto &file: files) {
         std::cout << "Processing: " << file.filename << std::endl;

@@ -18,12 +18,12 @@
 #include "bitmap.h"
 
 // implement Bitmap constructor
-Bitmap::Bitmap(int w, int h) 
+Bitmap::Bitmap(int w, int h)
     : width(w), height(h), data(h, std::vector<uint8_t>(w, 0)) {}
 
 
 // implement FloatMap constructor
-FloatMap::FloatMap(int w, int h) 
+FloatMap::FloatMap(int w, int h)
     : width(w), height(h), data(h, std::vector<float>(w, 0.0f)) {}
 
 bool is_valid_floatmap(const FloatMap &floatmap, int max_output_lines) {
@@ -289,7 +289,7 @@ FloatMap make_gaussian_kernel(int size, float sigma) {
  * @note Larger kernel_size and sigma values produce stronger blur effect
  * @see make_gaussian_kernel, border_extend_floatmap, apply_kernel_as_weighted_average
  */
-FloatMap gaussian_blur(const FloatMap &floatmap, const FloatMap& kernel) {
+FloatMap gaussian_blur(const FloatMap &floatmap, const FloatMap &kernel) {
     FloatMap result = border_extend_floatmap(floatmap, kernel.width / 2);
 
     // Apply Gaussian blur
@@ -379,3 +379,30 @@ Bitmap create_bitmap_from_floatmap(const FloatMap &floatmap) {
     }
     return bitmap;
 }
+
+/**
+ * Turn 2d vector data to 1d vector
+ *
+ * This assume width and heights will match, and will just raw copy
+ */
+void serialize(const std::vector<std::vector<float> > &in, std::vector<float> &out) {
+    for (int y = 0; y < in.size(); y++) {
+        for (int x = 0; x < in[0].size(); x++) {
+            out[y * in[0].size() + x] = in[y][x];
+        }
+    }
+}
+
+/**
+ * Turn 1d vector data to 2d vector
+ *
+ * This assume width and heights will match, and will just raw copy
+ */
+void deserialize(const std::vector<float> &in, std::vector<std::vector<float> > &out) {
+    for (int y = 0; y < out.size(); y++) {
+        for (int x = 0; x < out[0].size(); x++) {
+            out[y][x] = in[y * out[0].size() + x];
+        }
+    }
+}
+

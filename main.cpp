@@ -2,20 +2,16 @@
 #include <cmath>
 #include <iostream>
 #include <filesystem>
-#include <future>
 
-#include "common/utils.h"
-#include "common/bitmap.h"
-#include "sequential/sequential.h"
+#include "utils.h"
+#include "bitmap.h"
+#include "sequential.h"
 namespace fs = std::filesystem;
+
 
 // Enable extra debug print
 // Uncomment to enable, comment to disable.
 #define DEBUG
-
-// Enable saving of debug frames. Useful for checking algorithm correctness, really not useful otherwise
-// Uncomment to enable, comment to disable.
-// #define SAVE_PROCESS_FRAMES
 
 
 /**
@@ -66,7 +62,7 @@ int main(int argc, char *argv[]) {
     }
 
     // load kernels, images to process (this step will not be analyzed)
-    DataSet s = prepareDataset(blur_kernel_size, blur_sigma, INDIR, OUTDIR);
+    DataSet s = prepareDataset(blur_kernel_size, blur_sigma, INDIR, false);
 
     FloatMap gaussianKernel = s.gaussianKernel;
     FloatMap sobelKernelVert = s.sobelKernelVert;
@@ -78,7 +74,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Using blur_kernel_size = " << blur_kernel_size << ", blur_sigma = " << blur_sigma << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;
 
-    // run various versions of the program. 1 = sequential, 2 = openmp, 3 = openmpi
+    // run various versions of the program. 1 = sequential, 2 = openmp. Openmp is in its own file
     if (variant == 1) {
         runSequential(files, gaussianKernel, sobelKernelVert, sobelKernelHoriz);
     } else {

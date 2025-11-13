@@ -12,9 +12,10 @@ This is a serious edging project.
     - No exotic image formats please. Jpeg and PNG are recommended.
 3. Compile and run the project
 
+Sequential
 ```bash
 # compile
-g++ main.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning
+g++ main.cpp sequential.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning
 # run
 ./whyareyourunning
 
@@ -28,7 +29,35 @@ g++ main.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning
 Or all together
 
 ```bash
-g++ main.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning && ./whyareyourunning
+g++ main.cpp sequential.cpp bitmap.cpp utils.cpp  -std=c++17 -o whyareyourunning && ./whyareyourunning
+```
+
+
+OpenMPI
+
+```bash
+# compile. We will assume you have a working compiler that compiles openmp fine, and system that runs openmp fine
+mpicxx  -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp
+
+# run with 2 workers
+mpirun -n 3 ./whyareyourunningMPI 3 11 0.2
+
+# run sequential version with openmpi mode
+mpirun -n 1 ./whyareyourunningMPI 1 11 0.2
+```
+
+Setup openmpi on fedora
+```bash
+sudo dnf install openmpi openmpi-devel
+
+# load the modules
+# either
+source /etc/profile.d/modules.sh
+# or
+module load mpi/openmpi-x86_64
+
+# check/test
+ompi_info
 ```
 
 4. The output images are stored in `data/output/`

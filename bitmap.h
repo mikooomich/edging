@@ -55,5 +55,7 @@ Bitmap create_bitmap_from_floatmap(const FloatMap& floatmap);
 FloatMap calculate_direction(const FloatMap& sobel_horizontal_image, const FloatMap& sobel_vertical_image);
 
 
+void serialize(const std::vector<std::vector<float>> &in, std::vector<float> &out );
+void deserialize(const std::vector<float> &in , std::vector<std::vector<float>> &out);
 
 #endif
