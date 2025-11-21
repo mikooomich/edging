@@ -4,10 +4,7 @@
 
 #include "bitmap.h"
 #include "utils.h"
-
-// Enable extra debug print
-// Uncomment to enable, comment to disable.
-#define DEBUG
+#include "utils.h"
 
 // main processing function.
 int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const FloatMap &sobelKernelvert,
@@ -31,7 +28,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
     // 2. Log how long it takes to complete that step
     // This is repeated for every step after this point
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
     std::cout << "DEBUG: gaussian blur" << std::endl;
 #endif
 
@@ -48,7 +45,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
 #endif
 
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
     std::cout << "DEBUG: extended_blurred_image" << std::endl;
 #endif
     // Extend blured image borders
@@ -63,7 +60,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
 #endif
 
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
     std::cout << "DEBUG: sobel_vertical_image" << std::endl;
 #endif
 
@@ -80,7 +77,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
 #endif
 
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
     std::cout << "DEBUG: sobel_horizontal_image" << std::endl;
 #endif
 
@@ -97,7 +94,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
 #endif
 
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
     std::cout << "DEBUG: magnitude" << std::endl;
 #endif
 
@@ -117,7 +114,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
 #endif
 
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
     std::cout << "DEBUG: direction" << std::endl;
 #endif
 
@@ -143,7 +140,7 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
     result->debugFrames.emplace_back(BitmapResult(image_original_path, 0L, result->image));
 #endif
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
     std::cout << "DEBUG: Create final bitmap" << std::endl;
 #endif
 

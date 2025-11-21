@@ -13,11 +13,11 @@ namespace fs = std::filesystem;
 
 // Enable extra debug print
 // Uncomment to enable, comment to disable.
-#define DEBUG
+// #define EDGING_DEBUG
 
 // Enable saving of debug frames. Useful for checking algorithm correctness, really not useful otherwise
 // Uncomment to enable, comment to disable.
-// #define SAVE_PROCESS_FRAMES
+ // #define SAVE_PROCESS_FRAMES
 
 long getSysTime() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).
@@ -89,7 +89,7 @@ DataSet prepareDataset(int blur_kernel_size, float blur_sigma, std::string indir
         std::string filename = entry.path().filename().string();
         if (filename[0] != '.') {
             std::string fullPath = entry.path().string();
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
             std::cout << "Found: " << filename << " (" << fullPath << ")" << std::endl;
 #endif
 
@@ -125,7 +125,7 @@ void saveResult(std::vector<BitmapResult> &files, std::string outdir) {
                     << std::endl;
             save_floatmap_as(file.image, outdir + "/" + file.filename);
 
-#ifdef DEBUG
+#ifdef EDGING_DEBUG
             std::string debugTimePrint = "\tDEBUG: time breakdown: ";
             // save any debug frames
             for (const auto &debugFrame: file.debugFrames) {

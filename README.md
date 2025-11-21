@@ -16,6 +16,10 @@ Sequential
 ```bash
 # compile
 g++ main.cpp sequential.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning
+
+# compile debug
+g++ main.cpp sequential.cpp bitmap.cpp utils.cpp -std=c++17 -g -Wall -o whyareyourunning
+
 # run
 ./whyareyourunning
 
@@ -37,23 +41,25 @@ OpenMPI
 
 ```bash
 # compile. We will assume you have a working compiler that compiles openmp fine, and system that runs openmp fine
-mpicxx  -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp
+mpicxx -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp
+
+# compile debug
+#mpicxx -g -Wall -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp
+
 
 # run with 2 workers
 mpirun -n 3 ./whyareyourunningMPI 3 11 0.2
 
-# run sequential version with openmpi mode
-mpirun -n 1 ./whyareyourunningMPI 1 11 0.2
+# run with 2 workers
+mpirun -n 6 ./whyareyourunningMPI 3 11 0.2
 ```
 
 Setup openmpi on fedora
 ```bash
-sudo dnf install openmpi openmpi-devel
+#sudo dnf install openmpi openmpi-devel
 
 # load the modules
-# either
 source /etc/profile.d/modules.sh
-# or
 module load mpi/openmpi-x86_64
 
 # check/test
@@ -77,5 +83,12 @@ For example, 355 1920x1080 images use ~2.8 GB of memory overall (including overh
 
 When running, up to an additional `[num threads] * [pixel count] * 3 * 7` bytes of memory will be used. 
 - For a single 1920x1080 image and single thread exception, this equates to roughly 43.54 MB.
+
+
+## Debug stuff
+You can enable/disable extra print/file saving in utils.h
+
+
+EDGING_DEBUG enables extra debugging/verbose prints
 
 SAVE_PROCESS_FRAMES is intended for algorithm debugging. Do not enable otherwise. This will roughly 7x your memory usage after execution as all images are saved.

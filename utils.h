@@ -4,6 +4,16 @@
 
 #include "bitmap.h"
 
+
+// Enable extra debug print
+// Uncomment to enable, comment to disable.
+#define EDGING_DEBUG
+
+// Enable saving of debug frames. Useful for checking algorithm correctness, really not useful otherwise
+// Uncomment to enable, comment to disable.
+// #define SAVE_PROCESS_FRAMES
+
+
 struct DataSet {
     std::vector<BitmapResult> files;
 

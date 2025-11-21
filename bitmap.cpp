@@ -16,6 +16,7 @@
 #include "stb_image_write.h"
 
 #include "bitmap.h"
+#include "utils.h"
 
 // implement Bitmap constructor
 Bitmap::Bitmap(int w, int h)

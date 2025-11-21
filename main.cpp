@@ -9,10 +9,6 @@
 namespace fs = std::filesystem;
 
 
-// Enable extra debug print
-// Uncomment to enable, comment to disable.
-#define DEBUG
-
 
 /**
  * Main program entry point

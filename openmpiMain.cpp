@@ -15,11 +15,6 @@ namespace fs = std::filesystem;
 #include <mpi.h>     /* For MPI functions, etc */
 
 
-// Enable extra debug print
-// Uncomment to enable, comment to disable.
-#define DEBUG
-
-
 /**
  * Main program entry point
  * @param argc M
