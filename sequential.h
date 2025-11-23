@@ -3,9 +3,10 @@
 #define EDGING_SEQUENTIAL_H
 #include "bitmap.h"
 
-int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const FloatMap &sobelKernelvert,
-                 const FloatMap &sobelKernelHoriz);
 
+int processImageNoGauss(BitmapResult *result, const FloatMap &sobelKernelvert, const FloatMap &sobelKernelHoriz);
+
+void processGaussianBlur(BitmapResult *result, const FloatMap &gaussianKernel) ;
 
 void runSequential( std::vector<BitmapResult>& files,  const FloatMap &gaussianKernel, const FloatMap &sobelKernelVert, const FloatMap &sobelKernelHoriz);
 

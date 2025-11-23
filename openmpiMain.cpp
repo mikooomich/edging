@@ -3,6 +3,7 @@
 #include <iostream>
 #include <filesystem>
 #include <future>
+#include <queue>
 
 #include "utils.h"
 #include "bitmap.h"
@@ -13,6 +14,21 @@ namespace fs = std::filesystem;
 #include <stdio.h>
 #include <string.h>  /* For strlen             */
 #include <mpi.h>     /* For MPI functions, etc */
+
+
+/*
+ * Thread layout design for openmpi part
+ *
+ * Given a total number of threads (comm_sz) the threads will be as allocated as such:
+ * [master, general workers (m worker)......, gaussian workers (g worker)......]
+ *
+ * master = rank 0
+ * m worker = 1 ---> gaussStart - 1
+ * g worker = gaussStart ---> comm-sz - 1
+ *
+ * gaussStart is a variable is defined with runtime args. This must be > 1, < comm-sz
+ *
+ * /
 
 
 /**
@@ -29,7 +45,16 @@ int main(int argc, char *argv[]) {
     int blur_kernel_size = -1;
     float blur_sigma = -1.0f;
 
-    // for openmpi, this is entirely ignored
+    // open mpi specific args
+
+    /**
+     * Start of gaussian worker threads
+     *
+     * This must be > 1, < comm-sz
+     */
+    int gaussStart = -1;
+
+    // for openmpi compiled programs, this is entirely ignored
     /**
      *1 = sequential
      *2 = openmp/cude
@@ -45,6 +70,9 @@ int main(int argc, char *argv[]) {
     }
     if (argc > 3) {
         blur_sigma = std::atof(argv[3]);
+    }
+    if (argc > 4) {
+        gaussStart = std::atof(argv[4]);
     }
 
 
@@ -63,33 +91,88 @@ int main(int argc, char *argv[]) {
         std::cout << "Example: whyareyourunning 11 0.2" << std::endl;
     }
 
-    int comm_sz; /* Number of processes    */
-    int my_rank; /* My process rank        */
+    int comm_sz;
+    int my_rank;
 
-    /* Start up MPI */
     MPI_Init(NULL, NULL);
-
-    /* Get the number of processes */
     MPI_Comm_size(MPI_COMM_WORLD, &comm_sz);
-
-    /* Get my rank among all the processes */
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
+    // partition must be within bounds
+    assert(gaussStart < comm_sz && gaussStart > 1);
 
     std::cout << "I am : " << my_rank << " -- " << comm_sz << std::endl;
 
 
     /**
      * Worker
+     *
+     * master = 0
+     * gauss = 1 -> slice
+     * rest worker = slice + 1 -> end
      */
-    if (my_rank != 0) {
+    if (my_rank > 0 && my_rank < gaussStart) {
+        while (true) {
+            // signal to master this thread is ready for more work
+            // int hai = -1;
+            // MPI_Send(&hai, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+
+
+            // recieve data
+            int picNumber = 0;
+            int width = 0;
+            int height = 0;
+
+            printf("[%d of %d, worker] Waiting from main...\n", my_rank, comm_sz - 1);
+            // receive floatmap metadata
+            MPI_Recv(&picNumber, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // this is the signal where master gives to say this worker is no longer needed
+            if (picNumber == -1) {
+                break;
+            }
+
+            MPI_Recv(&width, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Recv(&height, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // receive image data, then reconstruct the floatmap
+            std::vector<float> flat(width * height);
+            MPI_Recv(flat.data(), width * height, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf("[%d of %d] Starting processing of image %i. w=%i h=%i\n", my_rank, comm_sz - 1, picNumber, width,
+                   height);
+
+            FloatMap resultFloatmap(width, height);
+            deserialize(flat, resultFloatmap.data);
+            // TODO: uhhh time stats
+            BitmapResult bitmapResult = BitmapResult("hello how is it going", 0L, resultFloatmap);
+
+
+            // process the image
+            DataSet s = prepareDataset(blur_kernel_size, blur_sigma, INDIR, true);
+            // FloatMap gaussianKernel = s.gaussianKernel;
+            FloatMap sobelKernelVert = s.sobelKernelVert;
+            FloatMap sobelKernelHoriz = s.sobelKernelVert;
+
+            // gaussian blur part takes ~80% of the processing time... so we will further parallelize that part
+            // and just do the remaining processing on this worker sequentially
+
+            processImageNoGauss(&bitmapResult, sobelKernelVert, sobelKernelHoriz);
+            printf("Done processing (%d of %d). image = %i. Send back to master now\n", my_rank, comm_sz, picNumber);
+
+            // send result back to master with which image index was just processed
+            MPI_Send(&picNumber, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            FloatMap f = bitmapResult.image;
+            std::vector<float> result(f.width * f.height);
+            serialize(f.data, flat);
+            MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+        }
+    } else if (my_rank >= gaussStart) {
+        // gaussian worker
         while (true) {
             // recieve data
             int picNumber = 0;
             int width = 0;
             int height = 0;
 
-            printf("[%d of %d] Waiting from main...\n", my_rank, comm_sz - 1);
+            printf("[%d of %d, gauss] Waiting from main...\n", my_rank, comm_sz - 1);
             // receive floatmap metadata
             MPI_Recv(&picNumber, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -104,7 +187,8 @@ int main(int argc, char *argv[]) {
             // receive image data, then reconstruct the floatmap
             std::vector<float> flat(width * height);
             MPI_Recv(flat.data(), width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf("[%d of %d] Starting processing of image %i. w=%i h=%i\n", my_rank, comm_sz - 1, picNumber, width,
+            printf("[%d of %d] Starting processing of gauss image %i. w=%i h=%i\n", my_rank, comm_sz - 1, picNumber,
+                   width,
                    height);
 
             FloatMap resultFloatmap(width, height);
@@ -116,26 +200,50 @@ int main(int argc, char *argv[]) {
             // process the image
             DataSet s = prepareDataset(blur_kernel_size, blur_sigma, INDIR, true);
             FloatMap gaussianKernel = s.gaussianKernel;
-            FloatMap sobelKernelVert = s.sobelKernelVert;
-            FloatMap sobelKernelHoriz = s.sobelKernelVert;
+            // FloatMap sobelKernelVert = s.sobelKernelVert;
+            // FloatMap sobelKernelHoriz = s.sobelKernelVert;
 
             // gaussian blur part takes ~80% of the processing time... so we will further parallelize that part
             // and just do the remaining processing on this worker sequentially
 
-            processImage(&bitmapResult, gaussianKernel, sobelKernelVert, sobelKernelHoriz);
-            printf("Done processing (%d of %d). image = %i. Send back to master now\n", my_rank, comm_sz, picNumber);
+            processGaussianBlur(&bitmapResult, gaussianKernel);
+            // processImage(&bitmapResult, gaussianKernel, sobelKernelVert, sobelKernelHoriz);
+            printf("Done processing (%d of %d). gauss image = %i. Send back to master now\n", my_rank, comm_sz,
+                   picNumber);
 
-            // send result back to master with which image index was just processed
-            MPI_Send(&picNumber, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+
+            // prepare data to sedn to worker
             FloatMap f = bitmapResult.image;
             std::vector<float> result(f.width * f.height);
             serialize(f.data, flat);
-            MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+
+
+            // ask master for which worker is available, then send to that worker directly
+            int nextWorkerId;
+            printf("ASK MASTER WHAT TO DO (%d of %d)\n", my_rank, comm_sz);
+            MPI_Send(&picNumber, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            printf("wait for master (%d of %d).\n", my_rank, comm_sz);
+            MPI_Recv(&nextWorkerId, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            printf(" master GOT BACK  (%d of %d). send to %d\n", my_rank, comm_sz, nextWorkerId);
+
+
+            // send resultto the next worker in the pipeline
+            MPI_Send(&picNumber, 1, MPI_INT, nextWorkerId, 0, MPI_COMM_WORLD);
+            MPI_Send(&f.width, 1, MPI_INT, nextWorkerId, 0, MPI_COMM_WORLD);
+            MPI_Send(&f.height, 1, MPI_INT, nextWorkerId, 0, MPI_COMM_WORLD);
+            MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, nextWorkerId, 0, MPI_COMM_WORLD);
+
+            // signal to master this thread is ready for more work
+            int hai = -1;
+            MPI_Send(&hai, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
         }
     } else {
         /**
         * master
         */
+
+        std::queue<int> gaussianWorkers; // gauss workers waiting on worker
+        std::queue<int> mainWorkers; // main workers that are available
 
         printf("[MASTER]: process is starting [%d of %d]\n", my_rank, comm_sz);
         DataSet s = prepareDataset(blur_kernel_size, blur_sigma, INDIR, false);
@@ -144,13 +252,16 @@ int main(int argc, char *argv[]) {
 
         int maxFiles = files.size();
 
-        // send initial batch to workers
-        int initialBatchLimit = std::min(comm_sz - 1, maxFiles); // min of worker size and total file count
+        // send initial batch to gauss workers
+        int initialBatchLimit = std::min((comm_sz - 1) - (gaussStart - 1), maxFiles);
+        // min of worker size and total file count
         for (int i = 0; i < initialBatchLimit; i++) {
             // each worker gets every "rank th" image
             // TODO: other scheduling patterns?
-            int target = i + 1;
-            printf("[MASTER]: Sending to worker %d. Image: %d\n", target, i);
+            int target = gaussStart + i;
+#ifdef EDGING_DEBUG
+            printf("[MASTER]: Sending to gauss worker %d. Image: %d\n", target, i);
+#endif
             // can only send 1d arrays, so convert 2d into 1d
             FloatMap f = files[i].image;
             std::vector<float> flat(f.width * f.height);
@@ -165,67 +276,143 @@ int main(int argc, char *argv[]) {
             MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, target, 0, MPI_COMM_WORLD);
         }
 
-        // give workers more stuff
-        int nextImageIndex = initialBatchLimit - 1; // num workers
+        // register all main workers
+        for (int i = 1; i < gaussStart; i++) {
+            mainWorkers.push(i);
+        }
+
+        /**
+         * At this point, the master has sent all the gauss workers stuff to process. After that, the general process
+         * (without going into all the nuanced details such as keeping track of worker avalibility) is:
+         *
+         * if gauss worker:
+         *      Gauss worker finishes processing, then it messages master to ask main worker it can use.
+         *          Gauss worker sends its result directly to main worker
+         *      When the gauss worker is done sending to worker, it will notify master that it is done, then
+         *          master sends a new image
+         *
+         *  if main worker:
+         *      Worker processes image, then sends to master and Master Downloads the finished image, worker waits until a gauss thread sense it a new image
+         *
+         *
+         * This while loop handles the master part of the above logic
+         *
+         */
+        int nextImageIndex = initialBatchLimit; // starts the index after the initial send
         int completed = 0;
         while (completed < files.size()) {
             MPI_Status status;
+
+            /**
+             *Gaussian worker
+             *      -1              -----> Ready for new image
+             *      anything else   -----> Wants a worker rank number from master
+*/
             int picNumber = 0;
 
+#ifdef EDGING_DEBUG
             printf("[MASTER]: Receive iteration (%d of %llu)\n", completed, files.size());
-            // get which picture the worker is sending over, needed to get which index in files array to save it to
+#endif
+            // get which picture the gaussian/main worker is sending over
+            // this is also used to signal the status of the worker
             MPI_Recv(&picNumber, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
-            printf("[MASTER]: Download from %d for image: %d\n", status.MPI_SOURCE, picNumber);
 
-            // same receive process as how worker receive master's image
-            // But we can avoid sending floatmap height/width --> assume worker will send the correct image size over
-            BitmapResult *destination = &files[picNumber];
-            std::vector<float> flat(destination->image.width * destination->image.height);
-            MPI_Recv(flat.data(), destination->image.width * destination->image.height, MPI_FLOAT, status.MPI_SOURCE, 0,
-                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            int workerRank = status.MPI_SOURCE;
+#ifdef EDGING_DEBUG
+            printf("[MASTER]: RECEIVING FROM (%d of %llu)\n", workerRank, files.size());
+#endif
+
+            // assign the gauss worker a
+            if (status.MPI_SOURCE >= gaussStart && picNumber != -1) {
+                // send the gauss worker a main worker. if there is no available worker, save it for next iteration or when a main worker is available
+                if (!mainWorkers.empty()) {
+                    int nextWorkerID = mainWorkers.front();
+                    mainWorkers.pop();
+                    MPI_Send(&nextWorkerID, 1, MPI_INT, workerRank, 0, MPI_COMM_WORLD);
+                } else {
+                    gaussianWorkers.push(status.MPI_SOURCE);
+                }
+                continue;
+            }
+
+            // send new image for the gauss worker to work on
+            if (status.MPI_SOURCE >= gaussStart) {
+                if (nextImageIndex < files.size()) {
+#ifdef EDGING_DEBUG
+                    printf("[MASTER]: Sending to gauss worker %d. Image: %d\n", workerRank, nextImageIndex);
+#endif
+                    // can only send 1d arrays, so convert 2d into 1d
+                    FloatMap f = files[nextImageIndex].image;
+                    std::vector<float> flat(f.width * f.height);
+                    serialize(f.data, flat);
 
 
-            deserialize(flat, destination->image.data);
-            destination->totalRuntime = 69; // TODO: uhhh time stats
+                    // send metadata: image index, width, height
+                    MPI_Send(&nextImageIndex, 1, MPI_INT, workerRank, 0, MPI_COMM_WORLD);
+                    MPI_Send(&f.width, 1, MPI_INT, workerRank, 0, MPI_COMM_WORLD);
+                    MPI_Send(&f.height, 1, MPI_INT, workerRank, 0, MPI_COMM_WORLD);
+                    // send image data
+                    MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, workerRank, 0, MPI_COMM_WORLD);
 
-            completed++;
-            nextImageIndex++;
-
-            printf("[MASTER]: Download FINISHED from %d for image: %d\n", status.MPI_SOURCE, picNumber);
-
-            // send new image for the worker to work on
-            if (nextImageIndex < files.size()) {
-                // each worker gets every "rank th" image
-                // TODO: other scheduling patterns?
-                int target = status.MPI_SOURCE;
-
-                printf("[MASTER]: Sending to worker %d. Image: %d\n", target, nextImageIndex);
-                // can only send 1d arrays, so convert 2d into 1d
-                FloatMap f = files[nextImageIndex].image;
-                std::vector<float> flat(f.width * f.height);
-                serialize(f.data, flat);
-
-
-                // send metadata: image index, width, height
-                MPI_Send(&nextImageIndex, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
-                MPI_Send(&f.width, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
-                MPI_Send(&f.height, 1, MPI_INT, target, 0, MPI_COMM_WORLD);
-                // send image data
-                MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, target, 0, MPI_COMM_WORLD);
+                    nextImageIndex++;
+                } else {
+                    // done, tell worker to die
+                    int dieSignal = -1;
+                    MPI_Send(&dieSignal, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+                }
             } else {
-                // done, tell worker to die
-                int dieSignal = -1;
-                MPI_Send(&dieSignal, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+                // download from the main worker
+#ifdef EDGING_DEBUG
+                printf("[MASTER]: Download from %d for image: %d\n", status.MPI_SOURCE, picNumber);
+#endif
+
+                // same receive process as how worker receive master's image
+                // But we can avoid sending floatmap height/width --> assume worker will send the correct image size over
+                BitmapResult *destination = &files[picNumber];
+                std::vector<float> flat(destination->image.width * destination->image.height);
+                MPI_Recv(flat.data(), destination->image.width * destination->image.height, MPI_FLOAT,
+                         status.MPI_SOURCE, 0,
+                         MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+
+                deserialize(flat, destination->image.data);
+                destination->totalRuntime = 69; // TODO: uhhh time stats
+
+                mainWorkers.push(status.MPI_SOURCE); // add back to available workers
+                completed++;
+
+
+#ifdef EDGING_DEBUG
+                printf("[MASTER]: Download FINISHED from %d for image: %d\n", status.MPI_SOURCE, picNumber);
+#endif
+
+                // clear out any backlogs of gauss workers that are waiting on main workers
+                if (!mainWorkers.empty()) {
+                    // dispatch
+                    while (!mainWorkers.empty() && !gaussianWorkers.empty()) {
+                        int nextWorkerID = mainWorkers.front();
+                        int nextGaussWorkerID = gaussianWorkers.front();
+                        mainWorkers.pop();
+                        gaussianWorkers.pop();
+
+                        MPI_Send(&nextWorkerID, 1, MPI_INT, nextGaussWorkerID, 0, MPI_COMM_WORLD);
+                    }
+                }
             }
         }
         std::cout << "[MASTER]: is done" << std::endl;
+
+        for (int i = 1; i < gaussStart; i++) {
+            // done, tell main worker to die
+            int dieSignal = -1;
+            MPI_Send(&dieSignal, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+        }
 
         // save results (this step will not be analyzed)
         saveResult(files, OUTDIR);
     }
 
 
-    /* Shut down MPI */
     MPI_Finalize();
 
     return 0;

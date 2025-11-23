@@ -7,8 +7,7 @@
 #include "utils.h"
 
 // main processing function.
-int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const FloatMap &sobelKernelvert,
-                 const FloatMap &sobelKernelHoriz) {
+int processImageNoGauss(BitmapResult *result, const FloatMap &sobelKernelvert, const FloatMap &sobelKernelHoriz) {
     //output paths for debugging. Designed for one image only.
     std::string image_original_path = "/image_original.png";
     std::string blurred_image_path = "/blurred_image.png";
@@ -28,29 +27,13 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
     // 2. Log how long it takes to complete that step
     // This is repeated for every step after this point
 
-#ifdef EDGING_DEBUG
-    std::cout << "DEBUG: gaussian blur" << std::endl;
-#endif
-
-    // Apply Gaussian blur to reduce noise before edge detection
-    // Use kernel size 11 and sigma 0.2 for smooth blurring
-    t1 = getSysTime();
-    FloatMap blurred_image = gaussian_blur(result->image, gaussianKernel);
-    t2 = getSysTime();
-
-#ifdef SAVE_PROCESS_FRAMES
-    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, blurred_image));
-#else
-    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, dudFloatMap));
-#endif
-
 
 #ifdef EDGING_DEBUG
     std::cout << "DEBUG: extended_blurred_image" << std::endl;
 #endif
     // Extend blured image borders
     t1 = getSysTime();
-    FloatMap extended_blurred_image = border_extend_floatmap(blurred_image, 1);
+    FloatMap extended_blurred_image = border_extend_floatmap(result->image, 1);
     t2 = getSysTime();
 
 #ifdef SAVE_PROCESS_FRAMES
@@ -157,11 +140,43 @@ int processImage(BitmapResult *result, const FloatMap &gaussianKernel, const Flo
     return 0;
 }
 
+void processGaussianBlur(BitmapResult *result, const FloatMap &gaussianKernel) {
+    //output paths for debugging. Designed for one image only.
+    std::string blurred_image_path = "/blurred_image.png";
+    FloatMap dudFloatMap = FloatMap(0, 0); // for when SAVE_PROCESS_FRAMES is off
 
-void runSequential( std::vector<BitmapResult> &files,  const FloatMap &gaussianKernel, const FloatMap &sobelKernelVert, const FloatMap &sobelKernelHoriz) {
+    long t1;
+    long t2;
+
+    // The process here will be:
+    // 1. Create the image
+    // 2. Log how long it takes to complete that step
+    // This is repeated for every step after this point
+
+#ifdef EDGING_DEBUG
+    std::cout << "DEBUG: gaussian blur" << std::endl;
+#endif
+
+    // Apply Gaussian blur to reduce noise before edge detection
+    // Use kernel size 11 and sigma 0.2 for smooth blurring
+    t1 = getSysTime();
+    FloatMap blurred_image = gaussian_blur(result->image, gaussianKernel);
+    t2 = getSysTime();
+
+#ifdef SAVE_PROCESS_FRAMES
+    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, blurred_image));
+#else
+    result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, dudFloatMap));
+#endif
+}
+
+
+void runSequential(std::vector<BitmapResult> &files, const FloatMap &gaussianKernel, const FloatMap &sobelKernelVert,
+                   const FloatMap &sobelKernelHoriz) {
     // process files
     for (auto &file: files) {
         std::cout << "Processing: " << file.filename << std::endl;
-        processImage(&file, gaussianKernel, sobelKernelVert, sobelKernelHoriz);
+        processGaussianBlur(&file, gaussianKernel);
+        processImageNoGauss(&file, sobelKernelVert, sobelKernelHoriz);
     }
 }
