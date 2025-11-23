@@ -47,11 +47,11 @@ mpicxx -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.c
 #mpicxx -g -Wall -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp
 
 
-# run with 2 workers
-mpirun -n 3 ./whyareyourunningMPI 3 11 0.2
+# run with 5 workers (2 main, 4 gaussian)
+mpirun -n 6 ./whyareyourunningMPI 3 11 0.2 3
 
-# run with 2 workers
-mpirun -n 6 ./whyareyourunningMPI 3 11 0.2
+# run with 8 workers (3 main, 12 gaussian)
+mpirun -n 16 ./whyareyourunningMPI 3 11 0.2 4
 ```
 
 Setup openmpi on fedora

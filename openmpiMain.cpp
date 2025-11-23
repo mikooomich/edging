@@ -10,7 +10,7 @@
 #include "sequential.h"
 namespace fs = std::filesystem;
 
-
+#include <sstream>
 #include <stdio.h>
 #include <string.h>  /* For strlen             */
 #include <mpi.h>     /* For MPI functions, etc */
@@ -105,12 +105,8 @@ int main(int argc, char *argv[]) {
 
 
     /**
-     * Worker
-     *
-     * master = 0
-     * gauss = 1 -> slice
-     * rest worker = slice + 1 -> end
-     */
+    * main Worker
+    */
     if (my_rank > 0 && my_rank < gaussStart) {
         while (true) {
             // signal to master this thread is ready for more work
@@ -120,6 +116,7 @@ int main(int argc, char *argv[]) {
 
             // recieve data
             int picNumber = 0;
+            long gaussTime;
             int width = 0;
             int height = 0;
 
@@ -131,6 +128,8 @@ int main(int argc, char *argv[]) {
                 break;
             }
 
+            MPI_Recv(&gaussTime, 1, MPI_LONG, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            // time for gaussian blur. this will be passed to master eventually
             MPI_Recv(&width, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             MPI_Recv(&height, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // receive image data, then reconstruct the floatmap
@@ -153,19 +152,33 @@ int main(int argc, char *argv[]) {
 
             // gaussian blur part takes ~80% of the processing time... so we will further parallelize that part
             // and just do the remaining processing on this worker sequentially
-
             processImageNoGauss(&bitmapResult, sobelKernelVert, sobelKernelHoriz);
             printf("Done processing (%d of %d). image = %i. Send back to master now\n", my_rank, comm_sz, picNumber);
 
+            // turn the time into a string, use comma delimit
+            std::string timeString = std::to_string(gaussTime) + ",";
+            for (auto frame: bitmapResult.debugFrames) {
+                timeString += std::to_string(frame.totalRuntime) + ",";
+            }
+            int len = timeString.size();
+
             // send result back to master with which image index was just processed
             MPI_Send(&picNumber, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+
+            // send time string
+            MPI_Send(&len, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+            MPI_Send(timeString.data(), len, MPI_CHAR, 0, 0, MPI_COMM_WORLD);
+
+            // send image data
             FloatMap f = bitmapResult.image;
             std::vector<float> result(f.width * f.height);
             serialize(f.data, flat);
             MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
         }
     } else if (my_rank >= gaussStart) {
-        // gaussian worker
+        /**
+        * gaussian worker
+        */
         while (true) {
             // recieve data
             int picNumber = 0;
@@ -220,15 +233,15 @@ int main(int argc, char *argv[]) {
 
             // ask master for which worker is available, then send to that worker directly
             int nextWorkerId;
-            printf("ASK MASTER WHAT TO DO (%d of %d)\n", my_rank, comm_sz);
             MPI_Send(&picNumber, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
-            printf("wait for master (%d of %d).\n", my_rank, comm_sz);
             MPI_Recv(&nextWorkerId, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            printf(" master GOT BACK  (%d of %d). send to %d\n", my_rank, comm_sz, nextWorkerId);
 
 
-            // send resultto the next worker in the pipeline
+            // send result to the next worker in the pipeline
             MPI_Send(&picNumber, 1, MPI_INT, nextWorkerId, 0, MPI_COMM_WORLD);
+            long processingTime = bitmapResult.debugFrames[0].totalRuntime;
+            // master just needs to know it's not -1 when asking for a worker... save 1 message pass by sending over the time lol
+            MPI_Send(&processingTime, 1, MPI_LONG, nextWorkerId, 0, MPI_COMM_WORLD);
             MPI_Send(&f.width, 1, MPI_INT, nextWorkerId, 0, MPI_COMM_WORLD);
             MPI_Send(&f.height, 1, MPI_INT, nextWorkerId, 0, MPI_COMM_WORLD);
             MPI_Send(flat.data(), f.width * f.height, MPI_FLOAT, nextWorkerId, 0, MPI_COMM_WORLD);
@@ -256,12 +269,14 @@ int main(int argc, char *argv[]) {
         int initialBatchLimit = std::min((comm_sz - 1) - (gaussStart - 1), maxFiles);
         // min of worker size and total file count
         for (int i = 0; i < initialBatchLimit; i++) {
-            // each worker gets every "rank th" image
-            // TODO: other scheduling patterns?
             int target = gaussStart + i;
 #ifdef EDGING_DEBUG
             printf("[MASTER]: Sending to gauss worker %d. Image: %d\n", target, i);
 #endif
+
+            // temporarily store start time, when the image is finished saving, this will be updated to represent the real total time
+            files[i].totalRuntime = getSysTime();
+
             // can only send 1d arrays, so convert 2d into 1d
             FloatMap f = files[i].image;
             std::vector<float> flat(f.width * f.height);
@@ -341,6 +356,10 @@ int main(int argc, char *argv[]) {
 #ifdef EDGING_DEBUG
                     printf("[MASTER]: Sending to gauss worker %d. Image: %d\n", workerRank, nextImageIndex);
 #endif
+
+                    // temporarily store start time, when the image is finished saving, this will be updated to represent the real total time
+                    files[nextImageIndex].totalRuntime = getSysTime();
+
                     // can only send 1d arrays, so convert 2d into 1d
                     FloatMap f = files[nextImageIndex].image;
                     std::vector<float> flat(f.width * f.height);
@@ -369,6 +388,23 @@ int main(int argc, char *argv[]) {
                 // same receive process as how worker receive master's image
                 // But we can avoid sending floatmap height/width --> assume worker will send the correct image size over
                 BitmapResult *destination = &files[picNumber];
+
+                // receive time string, then update the main data with it
+                int len;
+                MPI_Recv(&len, 1, MPI_INT, status.MPI_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                std::string timeString;
+                timeString.resize(len);
+                MPI_Recv(timeString.data(), len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+                // i miss my .split().foreach {}
+                std::stringstream ss(timeString);
+                std::string item;
+                while (std::getline(ss, item, ',')) {
+                    destination->debugFrames.push_back(BitmapResult("", std::stol(item), FloatMap(0, 0)));
+                }
+
+
+                // receive image data
                 std::vector<float> flat(destination->image.width * destination->image.height);
                 MPI_Recv(flat.data(), destination->image.width * destination->image.height, MPI_FLOAT,
                          status.MPI_SOURCE, 0,
@@ -376,7 +412,8 @@ int main(int argc, char *argv[]) {
 
 
                 deserialize(flat, destination->image.data);
-                destination->totalRuntime = 69; // TODO: uhhh time stats
+                // temporarily store start time, when the image is finished saving, this will be updated to represent the real total time
+                destination->totalRuntime = getSysTime() - destination->totalRuntime;
 
                 mainWorkers.push(status.MPI_SOURCE); // add back to available workers
                 completed++;

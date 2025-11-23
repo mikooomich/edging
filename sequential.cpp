@@ -105,7 +105,7 @@ int processImageNoGauss(BitmapResult *result, const FloatMap &sobelKernelvert, c
     // Direction indicates the orientation of edges at each pixel
     // This is not required in sobel. It is required in canny.
     t1 = getSysTime();
-    FloatMap direction = calculate_direction(sobel_horizontal_image, dudFloatMap);
+    FloatMap direction = calculate_direction(sobel_horizontal_image, sobel_vertical_image);
     t2 = getSysTime();
 
 
@@ -168,6 +168,8 @@ void processGaussianBlur(BitmapResult *result, const FloatMap &gaussianKernel) {
 #else
     result->debugFrames.emplace_back(BitmapResult(blurred_image_path, t2 - t1, dudFloatMap));
 #endif
+
+     result->totalRuntime = t2 - t1;
 }
 
 

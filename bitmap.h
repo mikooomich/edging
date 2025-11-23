@@ -11,7 +11,7 @@ struct Bitmap {
     int width;
     int height;
     std::vector<std::vector<uint8_t>> data;
-    
+
     Bitmap(int w, int h);
 };
 
@@ -20,23 +20,24 @@ struct FloatMap {
     int width;
     int height;
     std::vector<std::vector<float>> data;
-    
+
     FloatMap(int w, int h);
 };
 
 struct BitmapResult {
     std::string filename;
     long totalRuntime;
+    long overheadTime;
     FloatMap image; // input image
 
     std::vector<BitmapResult> debugFrames; // for debug only
 
-    BitmapResult(std::string  filename, long initialTime, FloatMap input);
+    BitmapResult(std::string  filename, long totalRuntime, FloatMap input);
 };
 
 
-inline BitmapResult::BitmapResult(std::string  filename, long initialTime, FloatMap input):
-  filename(std::move(filename)), totalRuntime(initialTime), image(std::move(input)){}
+inline BitmapResult::BitmapResult(std::string  filename, long totalRuntime, FloatMap input):
+  filename(std::move(filename)), totalRuntime(totalRuntime), overheadTime(0L), image(std::move(input)){}
 
 
 bool is_valid_floatmap(const FloatMap& floatmap, int max_output_lines = 10);
