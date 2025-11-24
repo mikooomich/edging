@@ -71,6 +71,7 @@ int main(int argc, char *argv[]) {
     std::cout << "-----------------------\n\n" << std::endl;
 
     // run various versions of the program. 1 = sequential, 2 = openmp. Openmp is in its own file
+    long startTime = getSysTime();
     if (variant == 1) {
         runSequential(files, gaussianKernel, sobelKernelVert, sobelKernelHoriz);
     } else {
@@ -78,7 +79,7 @@ int main(int argc, char *argv[]) {
     }
 
     // save results (this step will not be analyzed)
-    saveResult(files, OUTDIR);
+    saveResult(files, OUTDIR, startTime, "variant, blur kernel size, blur sigma\n"+std::to_string(variant) + ","+ std::to_string(blur_kernel_size) + "," + std::to_string(blur_sigma) +"\n");
 
     return 0;
 }

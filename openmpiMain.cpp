@@ -262,6 +262,7 @@ int main(int argc, char *argv[]) {
         DataSet s = prepareDataset(blur_kernel_size, blur_sigma, INDIR, false);
         std::vector<BitmapResult> files = s.files;
         printf("[MASTER]: Total images: %llu images\n", files.size());
+        long startTime = getSysTime();
 
         int maxFiles = files.size();
 
@@ -446,7 +447,7 @@ int main(int argc, char *argv[]) {
         }
 
         // save results (this step will not be analyzed)
-        saveResult(files, OUTDIR);
+        saveResult(files, OUTDIR, startTime, "variant, blur kernel size, blur sigma\n"+std::to_string(variant) + ","+ std::to_string(blur_kernel_size) + "," + std::to_string(blur_sigma) +"\n");
     }
 
 

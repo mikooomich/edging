@@ -135,7 +135,7 @@ int processImageNoGauss(BitmapResult *result, const FloatMap &sobelKernelvert, c
             result->image.data[y][x] = magnitude.data[y][x];
         }
     }
-    result->totalRuntime = getSysTime() - startTime;
+    result->totalRuntime += getSysTime() - startTime;
 
     return 0;
 }

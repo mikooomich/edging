@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 
 #include "bitmap.h"
 namespace fs = std::filesystem;
@@ -17,11 +18,13 @@ namespace fs = std::filesystem;
 
 // Enable saving of debug frames. Useful for checking algorithm correctness, really not useful otherwise
 // Uncomment to enable, comment to disable.
- // #define SAVE_PROCESS_FRAMES
+// #define SAVE_PROCESS_FRAMES
 
+/**
+ * So apparently windows may use January 1, 1601 as the start of epoch time and not 1970. Bro wtf microsoft
+ */
 long getSysTime() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).
-            count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 /**
@@ -111,7 +114,9 @@ DataSet prepareDataset(int blur_kernel_size, float blur_sigma, std::string indir
 }
 
 
-void saveResult(std::vector<BitmapResult> &files, std::string outdir) {
+void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, long startTime,
+                const std::string &infoText) {
+    long endTime = getSysTime();
     std::cout << "\n\n-----------------------" << std::endl;
     std::cout << "Saving images" << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;
@@ -124,19 +129,58 @@ void saveResult(std::vector<BitmapResult> &files, std::string outdir) {
             std::cout << "Saving: " << outdir + "/" + file.filename << "\n\tTime taken: " << file.totalRuntime << " ms"
                     << std::endl;
             save_floatmap_as(file.image, outdir + "/" + file.filename);
-
-#ifdef EDGING_DEBUG
-            std::string debugTimePrint = "\tDEBUG: time breakdown: ";
-            // save any debug frames
-            for (const auto &debugFrame: file.debugFrames) {
-#ifdef SAVE_PROCESS_FRAMES
-            std::cout << "DEBUG: Saving frame: " << outdir + "/" + debugFrame.filename << std::endl;
-            save_floatmap_as(debugFrame.image, outdir + "/" + debugFrame.filename);
-#endif
-            debugTimePrint.append("/" + std::to_string(debugFrame.totalRuntime));
-            }
-            std::cout << debugTimePrint << std::endl; // TODO: Unlabeled. label if we keep this...
-#endif
         }));
     }
+
+
+    // save debug frame of last image. used for algorithm debugging
+#ifdef SAVE_PROCESS_FRAMES
+    BitmapResult debugFrame = files.back();
+    std::cout << "DEBUG: Saving frame: " << outdir + "/" + debugFrame.filename << std::endl;
+    save_floatmap_as(debugFrame.image, outdir + "/" + debugFrame.filename);
+#endif
+
+
+    // save running time to output file. The time results will be in the order of files in the folder (most likely things are sorted alphanumerically), so file name will not be directly saved
+    std::string output;
+
+    output += "Results for run:\n" + std::to_string(startTime)+ "\n" + infoText;
+    output += "total run time (ms)\n" + std::to_string(endTime - startTime) + "\n\n\n";
+
+    output += "total, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction\n";
+    for (const auto &file: files) {
+        std::string debugTimePrint = "";
+        for (const auto &debugFrame: file.debugFrames) {
+            debugTimePrint.append(std::to_string(file.totalRuntime) +"," +std::to_string(debugFrame.totalRuntime) + ",");
+        }
+        debugTimePrint = debugTimePrint.erase(debugTimePrint.size() - 1);
+        output += debugTimePrint + "\n";
+    }
+
+
+    // sample printout:
+    /*
+Results for run:
+-1286957056
+variant, blur kernel size, blur sigma
+1,11,0.200000
+total run time (ms)
+19189
+
+
+total, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction
+13044,10317,13044,180,13044,815,13044,821,13044,252,13044,577
+909,733,909,10,909,50,909,51,909,17,909,40
+26,19,26,0,26,2,26,2,26,0,26,1
+917,734,917,11,917,50,917,59,917,15,917,40
+921,731,921,10,921,63,921,52,921,16,921,39
+3332,2688,3332,38,3332,195,3332,185,3332,61,3332,144
+     */
+
+
+    // std::cout << output << std::endl; // print to terminal
+    std::ofstream file(outdir +"/__"+std::to_string(0+startTime) + "  results.txt");
+    file << output;
+
+    file.close();
 }
