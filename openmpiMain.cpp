@@ -164,8 +164,6 @@ int main(int argc, char *argv[]) {
             FloatMap sobelKernelVert = s.sobelKernelVert;
             FloatMap sobelKernelHoriz = s.sobelKernelVert;
 
-            // gaussian blur part takes ~80% of the processing time... so we will further parallelize that part
-            // and just do the remaining processing on this worker sequentially
             processImageNoGauss(&bitmapResult, sobelKernelVert, sobelKernelHoriz);
             printf("Done processing (%d of %d). image = %i. Send back to master now\n", my_rank, comm_sz, picNumber);
 
@@ -220,21 +218,14 @@ int main(int argc, char *argv[]) {
 
             FloatMap resultFloatmap(width, height);
             deserialize(flat, resultFloatmap.data);
-            // TODO: uhhh time stats
             BitmapResult bitmapResult = BitmapResult("hello how is it going", 0L, resultFloatmap);
 
 
             // process the image
             DataSet s = prepareDataset(blur_kernel_size, blur_sigma, INDIR, true);
             FloatMap gaussianKernel = s.gaussianKernel;
-            // FloatMap sobelKernelVert = s.sobelKernelVert;
-            // FloatMap sobelKernelHoriz = s.sobelKernelVert;
-
-            // gaussian blur part takes ~80% of the processing time... so we will further parallelize that part
-            // and just do the remaining processing on this worker sequentially
 
             processGaussianBlur(&bitmapResult, gaussianKernel);
-            // processImage(&bitmapResult, gaussianKernel, sobelKernelVert, sobelKernelHoriz);
             printf("Done processing (%d of %d). gauss image = %i. Send back to master now\n", my_rank, comm_sz,
                    picNumber);
 

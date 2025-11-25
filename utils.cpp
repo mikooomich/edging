@@ -144,11 +144,12 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
     // save running time to output file. The time results will be in the order of files in the folder (most likely things are sorted alphanumerically), so file name will not be directly saved
     std::string output;
 
-    output += "Results for run:\n" + std::to_string(startTime)+ "\n" + infoText;
+    output += "Results for run:\n" + std::to_string(startTime)+ "\n\n" + infoText + "\n";
     output += "total run time of program (ms)\n" + std::to_string(endTime - startTime) + "\n\n\n";
 
     output += "total, overhead, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction\n";
 
+    long totalFrameRuntime = 0L;
     for (const auto &file: files) {
         output += std::to_string(file.totalRuntime) +"," + std::to_string(file.overheadTime) +",";
         std::string debugTimePrint = "";
@@ -157,15 +158,22 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
         }
         debugTimePrint = debugTimePrint.erase(debugTimePrint.size() - 1);
         output += debugTimePrint + "\n";
+        totalFrameRuntime += file.totalRuntime;
     }
+
+
+       output += "\n\n\ntotal overhead of program (ms)\n" + std::to_string(endTime - startTime - totalFrameRuntime);
 
 
     // sample printout:
     /*
 Results for run:
 -1286614070
+
+Worker count: gaussian workers: 5, main workers1
 variant, blur kernel size, blur sigma
 1,11,0.200000
+
 total run time (ms)
 20333
 
