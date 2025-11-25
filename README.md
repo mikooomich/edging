@@ -15,7 +15,7 @@ This is a serious edging project.
 Sequential
 ```bash
 # compile
-g++ main.cpp sequential.cpp bitmap.cpp utils.cpp -std=c++17 -o whyareyourunning
+g++ main.cpp sequential.cpp bitmap.cpp utils.cpp -std=c++17 -O2 -o whyareyourunning
 
 # compile debug
 g++ main.cpp sequential.cpp bitmap.cpp utils.cpp -std=c++17 -g -Wall -o whyareyourunning
@@ -33,7 +33,7 @@ g++ main.cpp sequential.cpp bitmap.cpp utils.cpp -std=c++17 -g -Wall -o whyareyo
 Or all together
 
 ```bash
-g++ main.cpp sequential.cpp bitmap.cpp utils.cpp  -std=c++17 -o whyareyourunning && ./whyareyourunning
+g++ main.cpp sequential.cpp bitmap.cpp utils.cpp  -std=c++17 -O2 -o whyareyourunning && ./whyareyourunning
 ```
 
 
@@ -41,7 +41,7 @@ OpenMPI
 
 ```bash
 # compile. We will assume you have a working compiler that compiles openmp fine, and system that runs openmp fine
-mpicxx -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp
+mpicxx -std=c++17 -O2 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp
 
 # compile debug
 #mpicxx -g -Wall -std=c++17 -o whyareyourunningMPI openmpiMain.cpp sequential.cpp bitmap.cpp utils.cpp

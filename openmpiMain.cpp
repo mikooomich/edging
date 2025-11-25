@@ -470,6 +470,15 @@ int main(int argc, char *argv[]) {
 
         // save results (this step will not be analyzed)
         saveResult(files, OUTDIR, startTime,
+                    /*
+                     0 is always main.
+                     # gauss workers = total - gaussStart
+                     # main workers = total - gauss workers - 1
+
+                   0 | 1 2 3 4 5 // 3 gaussStart, 3 gaussian workers, 2 main workers
+                   0 | 1 2 3 4 5 // 2 gaussStart, 4 gaussian workers, 1 main workers
+                   */
+                   "Worker count: g: " + std::to_string(comm_sz - gaussStart) + ", m: " +std::to_string(comm_sz - (comm_sz - gaussStart) - 1) + "\n" +
                    "variant, blur kernel size, blur sigma\n" + std::to_string(variant) + "," +
                    std::to_string(blur_kernel_size) + "," + std::to_string(blur_sigma) + "\n");
     }
