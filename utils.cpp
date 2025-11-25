@@ -145,13 +145,15 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
     std::string output;
 
     output += "Results for run:\n" + std::to_string(startTime)+ "\n" + infoText;
-    output += "total run time (ms)\n" + std::to_string(endTime - startTime) + "\n\n\n";
+    output += "total run time of program (ms)\n" + std::to_string(endTime - startTime) + "\n\n\n";
 
-    output += "total, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction\n";
+    output += "total, overhead, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction\n";
+
     for (const auto &file: files) {
+        output += std::to_string(file.totalRuntime) +"," + std::to_string(file.overheadTime) +",";
         std::string debugTimePrint = "";
         for (const auto &debugFrame: file.debugFrames) {
-            debugTimePrint.append(std::to_string(file.totalRuntime) +"," +std::to_string(debugFrame.totalRuntime) + ",");
+            debugTimePrint.append(std::to_string(debugFrame.totalRuntime) + ",");
         }
         debugTimePrint = debugTimePrint.erase(debugTimePrint.size() - 1);
         output += debugTimePrint + "\n";
@@ -161,20 +163,20 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
     // sample printout:
     /*
 Results for run:
--1286957056
+-1286614070
 variant, blur kernel size, blur sigma
 1,11,0.200000
 total run time (ms)
-19189
+20333
 
 
 total, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction
-13044,10317,13044,180,13044,815,13044,821,13044,252,13044,577
-909,733,909,10,909,50,909,51,909,17,909,40
-26,19,26,0,26,2,26,2,26,0,26,1
-917,734,917,11,917,50,917,59,917,15,917,40
-921,731,921,10,921,63,921,52,921,16,921,39
-3332,2688,3332,38,3332,195,3332,185,3332,61,3332,144
+14121,11338,14121,189,14121,853,14121,834,14121,252,14121,573
+903,727,903,10,903,49,903,51,903,16,903,40
+27,19,27,0,27,1,27,1,27,0,27,1
+969,783,969,10,969,51,969,51,969,16,969,40
+957,762,957,10,957,52,957,60,957,17,957,42
+3309,2671,3309,39,3309,187,3309,185,3309,61,3309,145
      */
 
 

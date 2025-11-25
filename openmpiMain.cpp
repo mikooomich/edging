@@ -28,8 +28,22 @@ namespace fs = std::filesystem;
  *
  * gaussStart is a variable is defined with runtime args. This must be > 1, < comm-sz
  *
- * /
+ */
 
+/**
+ * Running time is recorded with openmpi
+ *
+ * frame time: ALl kernel applications are done sequentially. The runtime for each step (aka frame) is saved separately under debugFrames (see BitmapResult)
+ *
+ *
+ *
+ * totalRuntime: The total runtime  is the time elapsed to process a single image from the time the
+ * master starts sending it to a gaussian worker, to when the master finishes downloading from the main worker.
+ * Includes any overhead due to message passing and/or overhead due to waiting for worker threads to become available.
+ *
+ *overheadTime: The overhead time is totalRuntime - the sum of the frame times
+ *
+ */
 
 /**
  * Main program entry point
@@ -413,8 +427,16 @@ int main(int argc, char *argv[]) {
 
 
                 deserialize(flat, destination->image.data);
-                // temporarily store start time, when the image is finished saving, this will be updated to represent the real total time
+
+                // save running times. total and overhead
                 destination->totalRuntime = getSysTime() - destination->totalRuntime;
+
+                long frameRuntime = 0L;
+                for (auto frame: destination->debugFrames) {
+                    frameRuntime += frame.totalRuntime;
+                }
+
+                destination->overheadTime = destination->totalRuntime - frameRuntime;
 
                 mainWorkers.push(status.MPI_SOURCE); // add back to available workers
                 completed++;
@@ -447,7 +469,9 @@ int main(int argc, char *argv[]) {
         }
 
         // save results (this step will not be analyzed)
-        saveResult(files, OUTDIR, startTime, "variant, blur kernel size, blur sigma\n"+std::to_string(variant) + ","+ std::to_string(blur_kernel_size) + "," + std::to_string(blur_sigma) +"\n");
+        saveResult(files, OUTDIR, startTime,
+                   "variant, blur kernel size, blur sigma\n" + std::to_string(variant) + "," +
+                   std::to_string(blur_kernel_size) + "," + std::to_string(blur_sigma) + "\n");
     }
 
 

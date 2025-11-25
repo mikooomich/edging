@@ -172,7 +172,19 @@ void processGaussianBlur(BitmapResult *result, const FloatMap &gaussianKernel) {
      result->totalRuntime = t2 - t1;
 }
 
-
+/**
+ * Running time recorded with sequential
+ *
+ * frame time: ALl kernel applications are done sequentially. The runtime for each step (aka frame) is saved separately under debugFrames (see BitmapResult)
+ *
+ *
+ *
+ * totalRuntime: The total runtime is the time elapsed to process a single image, and save it to data back to the input vector
+ * Includes any overhead.
+ *
+ *overheadTime: The overhead time is totalRuntime - the sum of the frame times
+ *
+ */
 void runSequential(std::vector<BitmapResult> &files, const FloatMap &gaussianKernel, const FloatMap &sobelKernelVert,
                    const FloatMap &sobelKernelHoriz) {
     // process files
@@ -180,5 +192,11 @@ void runSequential(std::vector<BitmapResult> &files, const FloatMap &gaussianKer
         std::cout << "Processing: " << file.filename << std::endl;
         processGaussianBlur(&file, gaussianKernel);
         processImageNoGauss(&file, sobelKernelVert, sobelKernelHoriz);
+
+        long frameRuntime = 0L;
+        for (const auto& frame: file.debugFrames) {
+            frameRuntime += frame.totalRuntime;
+        }
+        file.overheadTime = file.totalRuntime - frameRuntime;
     }
 }
