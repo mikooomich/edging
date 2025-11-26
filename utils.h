@@ -13,6 +13,9 @@
 // Uncomment to enable, comment to disable.
 // #define SAVE_PROCESS_FRAMES
 
+// Enable saving final images to disk
+// Uncomment to enable, comment to disable.
+#define SAVE_FINAL_RESULT
 
 struct DataSet {
     std::vector<BitmapResult> files;

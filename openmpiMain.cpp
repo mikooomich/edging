@@ -122,6 +122,7 @@ int main(int argc, char *argv[]) {
     * main Worker
     */
     if (my_rank > 0 && my_rank < gaussStart) {
+        printf("[%d of %d, worker] Online\n", my_rank, comm_sz - 1);
         while (true) {
             // signal to master this thread is ready for more work
             // int hai = -1;
@@ -134,7 +135,10 @@ int main(int argc, char *argv[]) {
             int width = 0;
             int height = 0;
 
+#ifdef EDGING_DEBUG
             printf("[%d of %d, worker] Waiting from main...\n", my_rank, comm_sz - 1);
+#endif
+
             // receive floatmap metadata
             MPI_Recv(&picNumber, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // this is the signal where master gives to say this worker is no longer needed
@@ -149,12 +153,14 @@ int main(int argc, char *argv[]) {
             // receive image data, then reconstruct the floatmap
             std::vector<float> flat(width * height);
             MPI_Recv(flat.data(), width * height, MPI_FLOAT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+#ifdef EDGING_DEBUG
             printf("[%d of %d] Starting processing of image %i. w=%i h=%i\n", my_rank, comm_sz - 1, picNumber, width,
                    height);
+#endif
+
 
             FloatMap resultFloatmap(width, height);
             deserialize(flat, resultFloatmap.data);
-            // TODO: uhhh time stats
             BitmapResult bitmapResult = BitmapResult("hello how is it going", 0L, resultFloatmap);
 
 
@@ -165,7 +171,9 @@ int main(int argc, char *argv[]) {
             FloatMap sobelKernelHoriz = s.sobelKernelVert;
 
             processImageNoGauss(&bitmapResult, sobelKernelVert, sobelKernelHoriz);
+#ifdef EDGING_DEBUG
             printf("Done processing (%d of %d). image = %i. Send back to master now\n", my_rank, comm_sz, picNumber);
+#endif
 
             // turn the time into a string, use comma delimit
             std::string timeString = std::to_string(gaussTime) + ",";
@@ -191,13 +199,15 @@ int main(int argc, char *argv[]) {
         /**
         * gaussian worker
         */
+        printf("[%d of %d, gauss] Online\n", my_rank, comm_sz - 1);
         while (true) {
             // recieve data
             int picNumber = 0;
             int width = 0;
             int height = 0;
-
+#ifdef EDGING_DEBUG
             printf("[%d of %d, gauss] Waiting from main...\n", my_rank, comm_sz - 1);
+#endif
             // receive floatmap metadata
             MPI_Recv(&picNumber, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -212,9 +222,11 @@ int main(int argc, char *argv[]) {
             // receive image data, then reconstruct the floatmap
             std::vector<float> flat(width * height);
             MPI_Recv(flat.data(), width * height, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+#ifdef EDGING_DEBUG
             printf("[%d of %d] Starting processing of gauss image %i. w=%i h=%i\n", my_rank, comm_sz - 1, picNumber,
                    width,
                    height);
+#endif
 
             FloatMap resultFloatmap(width, height);
             deserialize(flat, resultFloatmap.data);
@@ -226,8 +238,10 @@ int main(int argc, char *argv[]) {
             FloatMap gaussianKernel = s.gaussianKernel;
 
             processGaussianBlur(&bitmapResult, gaussianKernel);
+#ifdef EDGING_DEBUG
             printf("Done processing (%d of %d). gauss image = %i. Send back to master now\n", my_rank, comm_sz,
                    picNumber);
+#endif
 
 
             // prepare data to sedn to worker
@@ -431,6 +445,9 @@ int main(int argc, char *argv[]) {
 
                 mainWorkers.push(status.MPI_SOURCE); // add back to available workers
                 completed++;
+                if (completed % 5 == 0) {
+                    printf("[MASTER]: Finished processing %d of %llu\n", completed, files.size());
+                }
 
 
 #ifdef EDGING_DEBUG

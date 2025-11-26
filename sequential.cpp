@@ -187,6 +187,7 @@ void processGaussianBlur(BitmapResult *result, const FloatMap &gaussianKernel) {
  */
 void runSequential(std::vector<BitmapResult> &files, const FloatMap &gaussianKernel, const FloatMap &sobelKernelVert,
                    const FloatMap &sobelKernelHoriz) {
+    int completed = 0;
     // process files
     for (auto &file: files) {
         std::cout << "Processing: " << file.filename << std::endl;
@@ -198,5 +199,10 @@ void runSequential(std::vector<BitmapResult> &files, const FloatMap &gaussianKer
             frameRuntime += frame.totalRuntime;
         }
         file.overheadTime = file.totalRuntime - frameRuntime;
+
+        completed++;
+        if (completed % 5 == 0) {
+            printf("[MASTER]: Finished processing %d of %llu\n", completed, files.size());
+        }
     }
 }

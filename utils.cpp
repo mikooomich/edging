@@ -121,6 +121,7 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
     std::cout << "Saving images" << std::endl;
     std::cout << "-----------------------\n\n" << std::endl;
 
+#ifdef SAVE_FINAL_RESULT
     // save all bitmaps, then debug frames if debug is enabled
     std::vector<std::future<void> > imageSavingJobs;
     imageSavingJobs.reserve(files.size());
@@ -131,7 +132,7 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
             save_floatmap_as(file.image, outdir + "/" + file.filename);
         }));
     }
-
+#endif
 
     // save debug frame of last image. used for algorithm debugging
 #ifdef SAVE_PROCESS_FRAMES
@@ -168,23 +169,27 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
     // sample printout:
     /*
 Results for run:
--1286614070
+-1113940624
 
-Worker count: gaussian workers: 5, main workers1
 variant, blur kernel size, blur sigma
 1,11,0.200000
 
-total run time (ms)
-20333
+total run time of program (ms)
+21446
 
 
-total, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction
-14121,11338,14121,189,14121,853,14121,834,14121,252,14121,573
-903,727,903,10,903,49,903,51,903,16,903,40
-27,19,27,0,27,1,27,1,27,0,27,1
-969,783,969,10,969,51,969,51,969,16,969,40
-957,762,957,10,957,52,957,60,957,17,957,42
-3309,2671,3309,39,3309,187,3309,185,3309,61,3309,145
+total, overhead, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction
+15229,94,12461,184,848,828,246,568
+929,9,749,10,51,52,17,41
+29,5,20,1,1,1,0,1
+934,9,754,11,50,51,17,42
+928,8,748,12,53,52,16,39
+3349,21,2702,43,187,188,60,148
+
+
+
+total overhead of program (ms)
+48
      */
 
 
