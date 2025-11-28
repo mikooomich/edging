@@ -151,6 +151,7 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
     output += "total, overhead, gaussian_blur, extended_blurred_image, sobel_vertical_image, sobel_horizontal_image, magnitude, direction\n";
 
     long totalFrameRuntime = 0L;
+    long totalFrameOverheadTime = 0L;
     for (const auto &file: files) {
         output += std::to_string(file.totalRuntime) +"," + std::to_string(file.overheadTime) +",";
         std::string debugTimePrint = "";
@@ -160,10 +161,11 @@ void saveResult(std::vector<BitmapResult> &files, const std::string &outdir, lon
         debugTimePrint = debugTimePrint.erase(debugTimePrint.size() - 1);
         output += debugTimePrint + "\n";
         totalFrameRuntime += file.totalRuntime;
+        totalFrameOverheadTime += file.overheadTime;
     }
 
 
-       output += "\n\n\ntotal overhead of program (ms)\n" + std::to_string(endTime - startTime - totalFrameRuntime);
+       output += "\n\n\ntotal min overhead of program (ms)\n" + std::to_string(totalFrameOverheadTime);
 
 
     // sample printout:
