@@ -433,15 +433,11 @@ int main(int argc, char *argv[]) {
 
                 deserialize(flat, destination->image.data);
 
-                // save running times. total and overhead
-                destination->totalRuntime = getSysTime() - destination->totalRuntime;
-
+                // save running times of individual frames
                 long frameRuntime = 0L;
                 for (auto frame: destination->debugFrames) {
                     frameRuntime += frame.totalRuntime;
                 }
-
-                destination->overheadTime = destination->totalRuntime - frameRuntime;
 
                 mainWorkers.push(status.MPI_SOURCE); // add back to available workers
                 completed++;
@@ -466,6 +462,10 @@ int main(int argc, char *argv[]) {
                         MPI_Send(&nextWorkerID, 1, MPI_INT, nextGaussWorkerID, 0, MPI_COMM_WORLD);
                     }
                 }
+
+                // save overhead times. This should be saved after dispatching backlog so the overhead from the master doing that step is counted
+                destination->totalRuntime = getSysTime() - destination->totalRuntime;
+                destination->overheadTime = destination->totalRuntime - frameRuntime;
             }
         }
         std::cout << "[MASTER]: is done" << std::endl;
