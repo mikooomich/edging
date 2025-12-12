@@ -67,4 +67,6 @@ data/output/
 
 data/
 whyareyourunning
+convert video to images/frames/*.png
+__date_template extras
 local_workspace/
