@@ -39,6 +39,7 @@ vcpkg/
 *.log
 core
 *.pid
+temp/
 
 # C++ debug files
 *.dSYM/
@@ -66,3 +67,4 @@ data/output/
 
 data/
 whyareyourunning
+local_workspace/
