@@ -36,6 +36,17 @@ Or all together
 g++ main.cpp sequential.cpp bitmap.cpp utils.cpp  -std=c++17 -O2 -o whyareyourunning && ./whyareyourunning
 ```
 
+CUDA
+# run the program
+# experiment data will be stored in cuda/analysis
+```bash
+nvcc cuda/cudaSobelAPI.cu cuda/bitmap.cpp -o temp/cuso_api && ./temp/cuso_api
+```
+
+# run the integrity test
+```bash
+nvcc cuda/cudaSobelTest.cu cuda/bitmap.cpp -o temp/cuso_test && ./temp/cuso_test
+```
 
 OpenMPI
 

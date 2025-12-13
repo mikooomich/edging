@@ -10,15 +10,15 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <cstring>
-#include "../bitmap.h"
-#include "cudaSobel.cu"  // 包含底层 CUDA 实现
+#include "bitmap.h"
+#include "cudaSobel.cu"  // Include underlying CUDA implementation
 
 
-std::string data_path = "data/analysis/cuda_experiment.csv";
-std::string input_path = "data/input_homo_smaller";
-std::string output_path = "data/output_homo_smaller";
+std::string data_path = "cuda/analysis/cuda_experiment.csv";
+std::string input_path = "cuda/input_homo_smaller";
+std::string output_path = "cuda/output_homo_smaller";
 
-// 编译命令（需要链接 bitmap.cpp）:
+// Compilation command (requires linking bitmap.cpp):
 // nvcc local_workspace/cudaSobelAPI.cu bitmap.cpp -o cuso_api && ./cuso_api
 
 /**
@@ -43,7 +43,7 @@ FloatMap cudaSobel(
     int blur_kernel_size = 11,
     float blur_sigma = 0.2f
 ) {
-    // 验证输入参数
+    // Validate input parameters
     if (blur_kernel_size % 2 != 1) {
         throw std::runtime_error("Blur kernel size must be odd");
     }
@@ -51,19 +51,19 @@ FloatMap cudaSobel(
         throw std::runtime_error("Blur sigma must be positive");
     }
     
-    // ========== 步骤 1: Border Extension for Gaussian Blur (CPU) ==========
-    // 先扩展边界，以便进行 Gaussian blur（与 bitmap.cpp 中的 gaussian_blur 函数一致）
+    // ========== Step 1: Border Extension for Gaussian Blur (CPU) ==========
+    // Extend borders first to perform Gaussian blur (consistent with gaussian_blur function in bitmap.cpp)
     FloatMap extended_for_blur = border_extend_floatmap(input, blur_kernel_size / 2);
     
-    // ========== 步骤 2: Gaussian Blur (CUDA) ==========
-    // 创建扩展后的 GPUImage
+    // ========== Step 2: Gaussian Blur (CUDA) ==========
+    // Create extended GPUImage
     FloatMap* extended_blur_copy = new FloatMap(extended_for_blur);
     GPUImage extended_blur_gpu(extended_blur_copy);
     
-    // 生成 Gaussian 核
+    // Generate Gaussian kernel
     FloatMap gaussian_kernel = make_gaussian_kernel(blur_kernel_size, blur_sigma);
     
-    // 计算 kernel_sum
+    // Calculate kernel_sum
     float kernel_sum = 0.0f;
     for (int y = 0; y < blur_kernel_size; y++) {
         for (int x = 0; x < blur_kernel_size; x++) {
@@ -71,7 +71,7 @@ FloatMap cudaSobel(
         }
     }
     
-    // 执行 Gaussian blur (CUDA)
+    // Execute Gaussian blur (CUDA)
     GPUImage blurred_gpu;
     cudaError_t err = apply_kernel_as_weighted_average_cuda(
         extended_blur_gpu, &blurred_gpu, gaussian_kernel, kernel_sum
@@ -81,20 +81,20 @@ FloatMap cudaSobel(
                                std::string(cudaGetErrorString(err)));
     }
     
-    // ========== 步骤 3: Border Extension for Sobel (CPU) ==========
-    // 将 blurred_gpu 复制回 CPU 进行 border extension（为 Sobel 准备）
+    // ========== Step 3: Border Extension for Sobel (CPU) ==========
+    // Copy blurred_gpu back to CPU for border extension (preparation for Sobel)
     FloatMap blurred_cpu = blurred_gpu.makeFloatMap();
     FloatMap extended = border_extend_floatmap(blurred_cpu, 1);
     
-    // ========== 步骤 4: Sobel Vertical Gradient (CUDA) ==========
-    // 创建扩展后的 GPUImage
+    // ========== Step 4: Sobel Vertical Gradient (CUDA) ==========
+    // Create extended GPUImage
     FloatMap* extended_copy = new FloatMap(extended);
     GPUImage extended_gpu(extended_copy);
     
-    // 生成 Sobel vertical 核
+    // Generate Sobel vertical kernel
     FloatMap sobel_vertical_kernel = get_sobel_kernel(true);  // true = vertical
     
-    // 执行 Sobel vertical (CUDA)
+    // Execute Sobel vertical (CUDA)
     GPUImage sobel_vertical_gpu;
     err = apply_kernel_as_sum_cuda(
         extended_gpu, &sobel_vertical_gpu, sobel_vertical_kernel
@@ -104,15 +104,15 @@ FloatMap cudaSobel(
                                std::string(cudaGetErrorString(err)));
     }
     
-    // ========== 步骤 5: Sobel Horizontal Gradient (CUDA) ==========
-    // 重新创建 extended_gpu（因为之前的可能已被移动）
+    // ========== Step 5: Sobel Horizontal Gradient (CUDA) ==========
+    // Recreate extended_gpu (previous one may have been moved)
     FloatMap* extended_copy2 = new FloatMap(extended);
     GPUImage extended_gpu2(extended_copy2);
     
-    // 生成 Sobel horizontal 核
+    // Generate Sobel horizontal kernel
     FloatMap sobel_horizontal_kernel = get_sobel_kernel(false);  // false = horizontal
     
-    // 执行 Sobel horizontal (CUDA)
+    // Execute Sobel horizontal (CUDA)
     GPUImage sobel_horizontal_gpu;
     err = apply_kernel_as_sum_cuda(
         extended_gpu2, &sobel_horizontal_gpu, sobel_horizontal_kernel
@@ -122,7 +122,7 @@ FloatMap cudaSobel(
                                std::string(cudaGetErrorString(err)));
     }
     
-    // ========== 步骤 6: Calculate Magnitude (CUDA) ==========
+    // ========== Step 6: Calculate Magnitude (CUDA) ==========
     GPUImage magnitude_gpu;
     err = calculate_magnitude_cuda(
         sobel_horizontal_gpu, sobel_vertical_gpu, &magnitude_gpu
@@ -132,8 +132,8 @@ FloatMap cudaSobel(
                                std::string(cudaGetErrorString(err)));
     }
     
-    // ========== 返回结果 ==========
-    // 使用 makeFloatMap() 成员函数生成新的 FloatMap 对象
+    // ========== Return Result ==========
+    // Generate new FloatMap object using makeFloatMap() member function
     return magnitude_gpu.makeFloatMap();
 }
 
@@ -378,13 +378,13 @@ processImageWithSobel(const std::string& input_path, const std::string& output_d
  * Reads an image from a hardcoded path, processes it using CUDA Sobel edge detection,
  * and saves the result to a hardcoded output path.
  */
-int main() {
-    // 使用全局变量定义的输入和输出路径
+int experiment(int size = 10) {
+    // Use global variables to define input and output paths
 
     std::string path_left = input_path + "/out-";
     const std::string path_right = ".png";
     const int start_index = 1;
-    const int end_index = 90;
+    const int end_index = size;
     //out-001.png
     
     // Generate and store paths in array
@@ -510,3 +510,13 @@ int main() {
     return (fail_count == 0) ? 0 : 1;
 }
 
+int main() {
+    for(int i = 10; i <= 100; i += 10) {
+        int result = experiment(i);
+        if (result != 0) {
+            std::cerr << "Error: Experiment failed for size " << i << std::endl;
+            return 1;
+        }
+    }
+    return 0;
+}

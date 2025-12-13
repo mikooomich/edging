@@ -5,11 +5,11 @@
 #include <iostream>
 #include <cmath>
 #include <stdexcept>
-#include "../bitmap.h"
-#include "cudaSobel.cu"  // 包含算法和数据结构
+#include "bitmap.h"
+#include "cudaSobel.cu"
 
-// 编译命令（需要链接 bitmap.cpp）:
-// nvcc local_workspace/cudaSobelTest.cu local_workspace/cudaSobel.cu bitmap.cpp -o cuso_test && ./cuso_test
+
+// nvcc cuda/cudaSobelTest.cu cuda/cudaSobel.cu bitmap.cpp -o temp/cuso_test && ./temp/cuso_test
 
 /**
  * @brief Compare two FloatMap objects with tolerance
@@ -28,7 +28,7 @@ bool compareFloatMaps(
     const FloatMap& product,
     float tolerance = 1e-5f
 ) {
-    // 检查尺寸是否匹配
+    // Check if dimensions match
     if (expected.width != product.width || expected.height != product.height) {
         fprintf(stderr, "Error: FloatMap dimensions don't match: "
                 "expected (%d x %d), got (%d x %d)\n",
@@ -41,7 +41,7 @@ bool compareFloatMaps(
     int mismatch_count = 0;
     const int max_mismatches_to_report = 10;
     
-    // 逐像素比较
+    // Compare pixel by pixel
     for (int y = 0; y < expected.height; y++) {
         for (int x = 0; x < expected.width; x++) {
             float expected_val = expected.data[y][x];
@@ -58,7 +58,7 @@ bool compareFloatMaps(
         }
     }
     
-    // 如果测试失败，输出统计信息
+    // If test fails, output statistics
     if (mismatch_count > 0) {
         printf("✗ FAIL: Found %d mismatches out of %d pixels\n",
                mismatch_count, total_pixels);
@@ -69,43 +69,43 @@ bool compareFloatMaps(
         return false;
     }
     
-    // 测试通过，不输出任何信息
+    // Test passed, no output
     return true;
 }
 
 int bitmap_test(){
     printf("=== Testing bitmap.cpp I/O functionality ===\n\n");
     
-    // ========== 使用 bitmap.cpp 创建和保存图像 ==========
+    // ========== Create and save image using bitmap.cpp ==========
     
-    // 1. 创建一个简单的测试图像 (200x200)
+    // 1. Create a simple test image (200x200)
     int width = 200;
     int height = 200;
     FloatMap testImage(width, height);
     
     printf("Creating %dx%d test image...\n", width, height);
     
-    // 2. 填充测试数据：创建一个简单的渐变图案
-    // 从左上角(0,0)到右下角(1,1)的线性渐变
+    // 2. Fill test data: create a simple gradient pattern
+    // Linear gradient from top-left (0,0) to bottom-right (1,1)
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            // 计算渐变值：x方向从0到1，y方向从0到1
+            // Calculate gradient value: x direction from 0 to 1, y direction from 0 to 1
             float value = (float)(x + y) / (width + height);
-            // 确保值在 [0, 1] 范围内
+            // Ensure value is in [0, 1] range
             testImage.data[y][x] = value;
         }
     }
     
     printf("Image data filled with gradient pattern.\n");
     
-    // 3. 保存图像到 local_workspace 文件夹
-    std::string outputPath = "test_image";  // 会保存为 test_image.png
+    // 3. Save image to temp folder
+    std::string outputPath = "temp/test_image";  // Will be saved as test_image.png
     printf("Saving image to: %s.png\n", outputPath.c_str());
     
     save_floatmap_as(testImage, outputPath);
     
     printf("\n=== I/O test completed successfully! ===\n");
-    printf("Check 'test_image.png' in local_workspace folder.\n");
+    printf("Check 'test_image.png' in temp folder.\n");
     
     return 0;
 }
@@ -113,7 +113,7 @@ int bitmap_test(){
 int GPUImage_lifecycle_test(const std::string& image_path) {
     printf("=== Loading image to GPU ===\n\n");
     
-    // ========== 1. 使用 bitmap 库加载图像 ==========
+    // ========== 1. Load image using bitmap library ==========
     printf("Loading image from: %s\n", image_path.c_str());
     FloatMap* image = new FloatMap(load_image_grayscale(image_path));
     
@@ -121,15 +121,15 @@ int GPUImage_lifecycle_test(const std::string& image_path) {
     printf("  Dimensions: %d x %d\n", image->width, image->height);
     printf("  Total pixels: %d\n", image->width * image->height);
     
-    // 保存 FloatMap 的原始信息用于后续检查
+    // Save original FloatMap information for later checks
     int original_width = image->width;
     int original_height = image->height;
     FloatMap* original_floatmap_ptr = image;
     
-    // ========== 2. 使用作用域块管理 GPUImage 生命周期 ==========
+    // ========== 2. Use scope block to manage GPUImage lifecycle ==========
     printf("\n=== Entering scope block for GPUImage ===\n");
     
-    // 在作用域块开始前检查 FloatMap
+    // Check FloatMap before scope block starts
     printf("\nBefore GPUImage creation:\n");
     if (image != NULL && image->width == original_width && 
         image->height == original_height && !image->data.empty()) {
@@ -141,12 +141,12 @@ int GPUImage_lifecycle_test(const std::string& image_path) {
     }
     
     {
-        // ========== 3. 使用 GPUImage 构造函数准备数据 ==========
+        // ========== 3. Use GPUImage constructor to prepare data ==========
         printf("\nCreating GPUImage object (using constructor)...\n");
         try {
-            GPUImage gpu_img(image);  // 构造函数自动完成：分配内存、展平数据、复制到GPU
-            // 注意：GPUImage 现在拥有 FloatMap 的所有权
-            // 如果构造失败，会抛出异常
+            GPUImage gpu_img(image);  // Constructor automatically: allocates memory, flattens data, copies to GPU
+            // Note: GPUImage now owns the FloatMap
+            // If construction fails, an exception will be thrown
             
             printf("  GPUImage created successfully!\n");
             printf("  GPU memory allocated: %.2f MB\n", 
@@ -154,7 +154,7 @@ int GPUImage_lifecycle_test(const std::string& image_path) {
             printf("  GPU pointer: %p\n", (void*)gpu_img.device_data);
             printf("  GPU memory size: %zu bytes\n", gpu_img.size_bytes);
         
-            // 检查 FloatMap 对象是否仍然有效（在 GPUImage 创建后，作用域块内）
+            // Check if FloatMap object is still valid (after GPUImage creation, inside scope block)
             printf("\nInside scope block (GPUImage exists):\n");
             if (image != NULL && image->width == original_width && 
                 image->height == original_height && !image->data.empty()) {
@@ -167,11 +167,11 @@ int GPUImage_lifecycle_test(const std::string& image_path) {
             
             printf("\n=== Image loaded to GPU successfully! ===\n");
             
-            // ========== 4. 等待用户输入确认 ==========
+            // ========== 4. Wait for user input confirmation ==========
             printf("\nPress Enter to continue and release GPU memory...\n");
-            std::cin.get();  // 等待用户按回车
+            std::cin.get();  // Wait for user to press Enter
             
-            // 在作用域块结束前检查 FloatMap
+            // Check FloatMap before scope block ends
             printf("\nBefore scope block ends (GPUImage still exists):\n");
             if (image != NULL && image->width == original_width && 
                 image->height == original_height && !image->data.empty()) {
@@ -184,30 +184,30 @@ int GPUImage_lifecycle_test(const std::string& image_path) {
             printf("\nLeaving scope block (GPUImage destructor will be called)...\n");
         } catch (const GPUImageException& e) {
             fprintf(stderr, "Error: Failed to create GPUImage: %s\n", e.what());
-            delete image;  // 清理 FloatMap
+            delete image;  // Clean up FloatMap
             return 1;
         }
-    }  // GPUImage 析构函数在这里被调用，FloatMap 也会被销毁
+    }  // GPUImage destructor is called here, FloatMap will also be destroyed
     
-    // ========== 5. 检查 FloatMap 对象是否已销毁（作用域块结束后）==========
+    // ========== 5. Check if FloatMap object has been destroyed (after scope block ends) ==========
     printf("\nAfter scope block ends (GPUImage destroyed):\n");
     printf("Checking if FloatMap object is still accessible...\n");
     
-    // 检查指针是否仍然指向同一个地址（对象已被销毁，但指针可能仍然指向该地址）
+    // Check if pointer still points to the same address (object has been destroyed, but pointer may still point to that address)
     if (image == original_floatmap_ptr) {
         printf("  FloatMap pointer still points to same address: %p\n", (void*)image);
         printf("  WARNING: FloatMap object has been destroyed by GPUImage destructor\n");
         printf("  WARNING: Accessing this pointer is undefined behavior\n");
         printf("  FloatMap is NO LONGER AVAILABLE (destroyed)\n");
         
-        // 将指针设为 NULL，明确表示对象已销毁且不可用
+        // Set pointer to NULL to clearly indicate object is destroyed and no longer available
         image = NULL;
         printf("  FloatMap pointer set to NULL (object is destroyed and no longer available)\n");
     } else {
         printf("  FloatMap pointer has changed or object has been destroyed\n");
     }
     
-    // 验证 FloatMap 确实不再可用
+    // Verify FloatMap is indeed no longer available
     if (image == NULL) {
         printf("  Confirmed: FloatMap pointer is NULL - object is destroyed and no longer available\n");
     } else {
@@ -231,7 +231,7 @@ int GPUImage_lifecycle_test(const std::string& image_path) {
 int test_gpu_gaussian_blur(const std::string& image_path) {
     printf("=== Testing GPU Gaussian Blur ===\n\n");
     
-    // 1. 加载图像
+    // 1. Load image
     printf("Loading image from: %s\n", image_path.c_str());
     FloatMap* input_floatmap = new FloatMap(load_image_grayscale(image_path));
     
@@ -239,17 +239,17 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
     printf("  Dimensions: %d x %d\n", input_floatmap->width, input_floatmap->height);
     printf("  Total pixels: %d\n", input_floatmap->width * input_floatmap->height);
     
-    // 2. 创建输入 GPUImage
+    // 2. Create input GPUImage
     printf("\nCreating input GPUImage...\n");
     try {
         GPUImage input_img(input_floatmap);
-        // 如果构造失败，会抛出异常
+        // If construction fails, an exception will be thrown
         
         printf("  Input GPUImage created successfully\n");
         printf("  GPU memory allocated: %.2f MB\n", 
                input_img.size_bytes / (1024.0f * 1024.0f));
         
-        // 3. 生成高斯核
+        // 3. Generate Gaussian kernel
     int kernel_size = 11;
     float sigma = 0.2f;
     printf("\nGenerating Gaussian kernel...\n");
@@ -258,7 +258,7 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
     
     FloatMap kernel = make_gaussian_kernel(kernel_size, sigma);
     
-    // 计算 kernel_sum
+    // Calculate kernel_sum
     float kernel_sum = 0.0f;
     for (int y = 0; y < kernel_size; y++) {
         for (int x = 0; x < kernel_size; x++) {
@@ -267,7 +267,7 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
     }
     printf("  Kernel sum: %.6f\n", kernel_sum);
     
-    // 4. 在 CPU 上执行（用于对比）
+    // 4. Execute on CPU (for comparison)
     printf("\n=== CPU Version (for comparison) ===\n");
     // FloatMap cpu_result = gaussian_blur(*input_floatmap, kernel_size, sigma);
     FloatMap ker = make_gaussian_kernel(kernel_size, sigma);
@@ -276,10 +276,10 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
     printf("CPU convolution completed\n");
     printf("  Output dimensions: %d x %d\n", cpu_result.width, cpu_result.height);
     
-    // 5. 在 GPU 上执行
+    // 5. Execute on GPU
     printf("\n=== GPU Version ===\n");
-    GPUImage output_img;  // 创建空对象（默认构造函数，device_data 为 NULL）
-    // 函数内部会根据计算出的尺寸构造新的 GPUImage 对象
+    GPUImage output_img;  // Create empty object (default constructor, device_data is NULL)
+    // Function will construct new GPUImage object based on calculated dimensions
     
     cudaError_t err = apply_kernel_as_weighted_average_cuda(
         input_img, &output_img, kernel, kernel_sum
@@ -294,18 +294,18 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
     printf("GPU convolution completed\n");
     printf("  Output dimensions: %d x %d\n", output_img.width, output_img.height);
     
-    // 6. 将 GPU 结果复制回 CPU 并比较
+    // 6. Copy GPU result back to CPU and compare
     printf("\n=== Comparing Results ===\n");
     
     try {
-        // 使用 makeFloatMap() 成员函数将 GPU 数据转换为 FloatMap
+        // Use makeFloatMap() member function to convert GPU data to FloatMap
         FloatMap gpu_result = output_img.makeFloatMap();
         
-        // 使用 compareFloatMaps() 函数比较结果
+        // Use compareFloatMaps() function to compare results
         float tolerance = 1e-5f;
         bool test_passed = compareFloatMaps(cpu_result, gpu_result, tolerance);
         
-        // 8. 报告结果
+        // 8. Report results
         printf("\n=== Test Results ===\n");
         if (test_passed) {
             printf("✓ PASS: GPU result matches CPU result exactly (tolerance: %.2e)\n", 
@@ -313,7 +313,7 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
             printf("  Total pixels compared: %d\n", 
                    cpu_result.width * cpu_result.height);
         }
-        // 如果测试失败，compareFloatMaps 已经输出了错误信息
+        // If test fails, compareFloatMaps has already output error information
         
         printf("\n=== Test completed ===\n");
         
@@ -327,7 +327,7 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
     }
     } catch (const GPUImageException& e) {
         fprintf(stderr, "Error: Failed to create input GPUImage: %s\n", e.what());
-        delete input_floatmap;  // 清理 FloatMap
+        delete input_floatmap;  // Clean up FloatMap
         return 1;
     }
 }
@@ -341,7 +341,7 @@ int test_gpu_gaussian_blur(const std::string& image_path) {
 int test_gpu_sobel_vertical(const std::string& image_path) {
     printf("=== Testing GPU Sobel Vertical (apply_kernel_as_sum) ===\n\n");
     
-    // 1. 加载图像
+    // 1. Load image
     printf("Loading image from: %s\n", image_path.c_str());
     FloatMap* input_floatmap = new FloatMap(load_image_grayscale(image_path));
     
@@ -349,31 +349,31 @@ int test_gpu_sobel_vertical(const std::string& image_path) {
     printf("  Dimensions: %d x %d\n", input_floatmap->width, input_floatmap->height);
     printf("  Total pixels: %d\n", input_floatmap->width * input_floatmap->height);
     
-    // 2. 创建输入 GPUImage
+    // 2. Create input GPUImage
     printf("\nCreating input GPUImage...\n");
     try {
         GPUImage input_img(input_floatmap);
-        // 如果构造失败，会抛出异常
+        // If construction fails, an exception will be thrown
         
         printf("  Input GPUImage created successfully\n");
         printf("  GPU memory allocated: %.2f MB\n", 
                input_img.size_bytes / (1024.0f * 1024.0f));
         
-        // 3. 生成 vertical Sobel 核
+        // 3. Generate vertical Sobel kernel
         printf("\nGenerating vertical Sobel kernel...\n");
         FloatMap sobel_vertical_kernel = get_sobel_kernel(true);  // true = vertical
         printf("  Kernel size: %d x %d\n", sobel_vertical_kernel.width, sobel_vertical_kernel.height);
         
-        // 4. 在 CPU 上执行（用于对比）
+        // 4. Execute on CPU (for comparison)
         printf("\n=== CPU Version (for comparison) ===\n");
         FloatMap cpu_result = apply_kernel_as_sum(*input_floatmap, sobel_vertical_kernel);
         printf("CPU convolution completed\n");
         printf("  Output dimensions: %d x %d\n", cpu_result.width, cpu_result.height);
         
-        // 5. 在 GPU 上执行
+        // 5. Execute on GPU
         printf("\n=== GPU Version ===\n");
-        GPUImage output_img;  // 创建空对象（默认构造函数，device_data 为 NULL）
-        // 函数内部会根据计算出的尺寸构造新的 GPUImage 对象
+        GPUImage output_img;  // Create empty object (default constructor, device_data is NULL)
+        // Function will construct new GPUImage object based on calculated dimensions
         
         cudaError_t err = apply_kernel_as_sum_cuda(
             input_img, &output_img, sobel_vertical_kernel
@@ -388,18 +388,18 @@ int test_gpu_sobel_vertical(const std::string& image_path) {
         printf("GPU convolution completed\n");
         printf("  Output dimensions: %d x %d\n", output_img.width, output_img.height);
         
-        // 6. 将 GPU 结果复制回 CPU 并比较
+        // 6. Copy GPU result back to CPU and compare
         printf("\n=== Comparing Results ===\n");
         
         try {
-            // 使用 makeFloatMap() 成员函数将 GPU 数据转换为 FloatMap
+            // Use makeFloatMap() member function to convert GPU data to FloatMap
             FloatMap gpu_result = output_img.makeFloatMap();
             
-            // 使用 compareFloatMaps() 函数比较结果
+            // Use compareFloatMaps() function to compare results
             float tolerance = 1e-5f;
             bool test_passed = compareFloatMaps(cpu_result, gpu_result, tolerance);
             
-            // 8. 报告结果
+            // 8. Report results
             printf("\n=== Test Results ===\n");
             if (test_passed) {
                 printf("✓ PASS: GPU result matches CPU result exactly (tolerance: %.2e)\n", 
@@ -407,7 +407,7 @@ int test_gpu_sobel_vertical(const std::string& image_path) {
                 printf("  Total pixels compared: %d\n", 
                        cpu_result.width * cpu_result.height);
             }
-            // 如果测试失败，compareFloatMaps 已经输出了错误信息
+            // If test fails, compareFloatMaps has already output error information
             
             printf("\n=== Test completed ===\n");
             
@@ -421,7 +421,7 @@ int test_gpu_sobel_vertical(const std::string& image_path) {
         }
     } catch (const GPUImageException& e) {
         fprintf(stderr, "Error: Failed to create input GPUImage: %s\n", e.what());
-        delete input_floatmap;  // 清理 FloatMap
+        delete input_floatmap;  // Clean up FloatMap
         return 1;
     }
 }
@@ -442,24 +442,24 @@ int test_gpu_sobel_magnitude(const std::string& image_path) {
 int test_gpu_calculate_magnitude(const std::string& image_path) {
     printf("=== Testing GPU Calculate Magnitude ===\n\n");
     
-    // 1. 加载图像（假设前面的步骤都成功，这里只是为了获取测试数据）
+    // 1. Load image (assuming previous steps succeeded, this is just to get test data)
     printf("Loading image from: %s\n", image_path.c_str());
     FloatMap* input_floatmap = new FloatMap(load_image_grayscale(image_path));
     
     printf("Image loaded successfully!\n");
     printf("  Dimensions: %d x %d\n", input_floatmap->width, input_floatmap->height);
     
-    // 2. 生成测试用的梯度数据（使用 CPU 版本生成，假设这些步骤都正确）
+    // 2. Generate test gradient data (using CPU version, assuming these steps are correct)
     printf("\nGenerating test gradients (using CPU version)...\n");
     
-    // 扩展边界
+    // Extend borders
     FloatMap extended = border_extend_floatmap(*input_floatmap, 1);
     
-    // 生成 Sobel 核
+    // Generate Sobel kernels
     FloatMap sobel_horizontal_kernel = get_sobel_kernel(false);  // horizontal
     FloatMap sobel_vertical_kernel = get_sobel_kernel(true);      // vertical
     
-    // 计算梯度（CPU 版本，假设正确）
+    // Calculate gradients (CPU version, assumed correct)
     FloatMap sobel_horizontal_cpu = apply_kernel_as_sum(extended, sobel_horizontal_kernel);
     FloatMap sobel_vertical_cpu = apply_kernel_as_sum(extended, sobel_vertical_kernel);
     
@@ -468,16 +468,16 @@ int test_gpu_calculate_magnitude(const std::string& image_path) {
     printf("  Vertical gradient dimensions: %d x %d\n", 
            sobel_vertical_cpu.width, sobel_vertical_cpu.height);
     
-    // 3. 在 CPU 上计算 magnitude（用于对比）
+    // 3. Calculate magnitude on CPU (for comparison)
     printf("\n=== CPU Version (for comparison) ===\n");
     FloatMap magnitude_cpu = calculate_magnitude(sobel_horizontal_cpu, sobel_vertical_cpu);
     printf("CPU magnitude calculation completed\n");
     printf("  Output dimensions: %d x %d\n", magnitude_cpu.width, magnitude_cpu.height);
     
-    // 4. 在 GPU 上计算 magnitude
+    // 4. Calculate magnitude on GPU
     printf("\n=== GPU Version ===\n");
     try {
-        // 创建 GPUImage 对象用于梯度数据
+        // Create GPUImage objects for gradient data
         FloatMap* sobel_h_fm = new FloatMap(sobel_horizontal_cpu);
         FloatMap* sobel_v_fm = new FloatMap(sobel_vertical_cpu);
         
@@ -486,8 +486,8 @@ int test_gpu_calculate_magnitude(const std::string& image_path) {
         
         printf("  Gradient GPUImages created successfully\n");
         
-        // 创建空的输出对象
-        GPUImage magnitude_gpu;  // 创建空对象（默认构造函数，device_data 为 NULL）
+        // Create empty output object
+        GPUImage magnitude_gpu;  // Create empty object (default constructor, device_data is NULL)
         
         cudaError_t err = calculate_magnitude_cuda(
             sobel_horizontal_gpu, sobel_vertical_gpu, &magnitude_gpu
@@ -504,18 +504,18 @@ int test_gpu_calculate_magnitude(const std::string& image_path) {
         printf("  Output dimensions: %d x %d\n", 
                magnitude_gpu.width, magnitude_gpu.height);
         
-        // 5. 将 GPU 结果复制回 CPU 并比较
+        // 5. Copy GPU result back to CPU and compare
         printf("\n=== Comparing Results ===\n");
         
         try {
-            // 使用 makeFloatMap() 成员函数将 GPU 数据转换为 FloatMap
+            // Use makeFloatMap() member function to convert GPU data to FloatMap
             FloatMap magnitude_gpu_result = magnitude_gpu.makeFloatMap();
             
-            // 使用 compareFloatMaps() 函数比较结果
+            // Use compareFloatMaps() function to compare results
             float tolerance = 1e-5f;
             bool test_passed = compareFloatMaps(magnitude_cpu, magnitude_gpu_result, tolerance);
             
-            // 6. 报告结果
+            // 6. Report results
             printf("\n=== Test Results ===\n");
             if (test_passed) {
                 printf("✓ PASS: GPU result matches CPU result exactly (tolerance: %.2e)\n", 
@@ -523,7 +523,7 @@ int test_gpu_calculate_magnitude(const std::string& image_path) {
                 printf("  Total pixels compared: %d\n", 
                        magnitude_cpu.width * magnitude_cpu.height);
             }
-            // 如果测试失败，compareFloatMaps 已经输出了错误信息
+            // If test fails, compareFloatMaps has already output error information
             
             printf("\n=== Test completed ===\n");
             
@@ -546,11 +546,12 @@ int test_gpu_calculate_magnitude(const std::string& image_path) {
 }
 
 int main() {
-    // bitmap_test();
-    // GPUImage_lifecycle_test("test_image.png");
-    // test_gpu_gaussian_blur("test_image.png");
-    // test_gpu_sobel_vertical("test_image.png");
-    test_gpu_calculate_magnitude("test_image.png");
+    std::string image_path = "data/input/image.png";
+    bitmap_test();
+    GPUImage_lifecycle_test(image_path);
+    test_gpu_gaussian_blur(image_path);
+    test_gpu_sobel_vertical(image_path);
+    test_gpu_calculate_magnitude(image_path);
     return 0;
 }
 

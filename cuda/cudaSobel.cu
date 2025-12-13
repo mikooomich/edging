@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdexcept>
 #include <string>
-#include "../bitmap.h"  // Include bitmap.h to use bitmap.cpp functionality
+#include "bitmap.h"
 
 // Custom exception class: used for GPUImage construction failures
 class GPUImageException : public std::runtime_error {
@@ -487,7 +487,7 @@ cudaError_t apply_kernel_as_sum_cuda(
     GPUImage* output,
     const FloatMap& kernel
 ) {
-    // 1. 验证输入
+    // 1. Validate input
     if (input.device_data == NULL) {
         fprintf(stderr, "Error: Input GPUImage has no device data\n");
         return cudaErrorInvalidValue;
@@ -498,7 +498,7 @@ cudaError_t apply_kernel_as_sum_cuda(
         return cudaErrorInvalidValue;
     }
     
-    // output 必须指向空对象（通过默认构造函数创建）
+    // output must point to an empty object (created via default constructor)
     if (output->device_data != NULL) {
         fprintf(stderr, "Error: Output GPUImage must be empty (device_data must be NULL)\n");
         return cudaErrorInvalidValue;
@@ -511,7 +511,7 @@ cudaError_t apply_kernel_as_sum_cuda(
     
     int kernel_size = kernel.width;
     
-    // 2. 计算输出尺寸（在函数内部根据 input 对象计算）
+    // 2. Calculate output dimensions (calculated inside function based on input object)
     int output_width = input.width - kernel_size + 1;
     int output_height = input.height - kernel_size + 1;
     
@@ -521,7 +521,7 @@ cudaError_t apply_kernel_as_sum_cuda(
         return cudaErrorInvalidValue;
     }
     
-    // 3. 构造输出 GPUImage 对象（直接使用带尺寸的构造函数）
+    // 3. Construct output GPUImage object (using constructor with dimensions)
     try {
         *output = GPUImage(output_width, output_height);
     } catch (const GPUImageException& e) {
@@ -529,8 +529,8 @@ cudaError_t apply_kernel_as_sum_cuda(
         return cudaErrorMemoryAllocation;
     }
     
-    // 4. 使用 GPUImage 对象将 kernel 复制到 GPU
-    // 创建 kernel 的副本（GPUImage 构造函数需要非 const 指针并取得所有权）
+    // 4. Copy kernel to GPU using GPUImage object
+    // Create a copy of kernel (GPUImage constructor requires non-const pointer and takes ownership)
     FloatMap* kernel_copy = new FloatMap(kernel.width, kernel.height);
     for (int y = 0; y < kernel_size; y++) {
         for (int x = 0; x < kernel_size; x++) {
@@ -538,31 +538,31 @@ cudaError_t apply_kernel_as_sum_cuda(
         }
     }
     
-    // 使用 GPUImage 管理 kernel 的 GPU 内存（自动处理展平和复制）
-    // GPUImage 会取得 kernel_copy 的所有权，并在析构时自动释放
-    // 如果构造失败，会抛出异常
+    // Use GPUImage to manage kernel's GPU memory (automatically handles flattening and copying)
+    // GPUImage will take ownership of kernel_copy and automatically release it on destruction
+    // If construction fails, an exception will be thrown
     try {
         GPUImage kernel_gpu(kernel_copy);
-        // 注意：如果构造失败，异常会被抛出，kernel_copy 会被 GPUImage 析构函数自动删除（RAII）
+        // Note: If construction fails, exception will be thrown, kernel_copy will be automatically deleted by GPUImage destructor (RAII)
         
-        // 5. 配置 kernel 启动参数
-        dim3 blockSize(16, 16);  // 每个 block 16x16 线程
+        // 5. Configure kernel launch parameters
+        dim3 blockSize(16, 16);  // 16x16 threads per block
         dim3 gridSize(
             (output_width + blockSize.x - 1) / blockSize.x,
             (output_height + blockSize.y - 1) / blockSize.y
         );
         
-        // 6. 启动 CUDA kernel
+        // 6. Launch CUDA kernel
         _apply_kernel_as_sum_kernel<<<gridSize, blockSize>>>(
-            input.device_data,          // 从 GPUImage 提取
-            output->device_data,        // 从 GPUImage 指针提取
-            kernel_gpu.device_data,     // 从 GPUImage 提取（kernel 数据）
-            input.width,                // 从 GPUImage 提取
-            input.height,               // 从 GPUImage 提取
-            kernel_size                 // 从 kernel 提取
+            input.device_data,          // Extract from GPUImage
+            output->device_data,        // Extract from GPUImage pointer
+            kernel_gpu.device_data,     // Extract from GPUImage (kernel data)
+            input.width,                // Extract from GPUImage
+            input.height,               // Extract from GPUImage
+            kernel_size                 // Extract from kernel
         );
         
-        // 7. 检查 kernel 启动错误
+        // 7. Check kernel launch errors
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess) {
             fprintf(stderr, "Error: CUDA kernel launch failed: %s\n",
@@ -570,7 +570,7 @@ cudaError_t apply_kernel_as_sum_cuda(
             return err;
         }
         
-        // 8. 等待 kernel 完成
+        // 8. Wait for kernel to complete
         err = cudaDeviceSynchronize();
         if (err != cudaSuccess) {
             fprintf(stderr, "Error: CUDA kernel execution failed: %s\n",
@@ -578,13 +578,13 @@ cudaError_t apply_kernel_as_sum_cuda(
             return err;
         }
         
-        // 9. kernel_gpu 对象会在函数结束时自动析构，释放 GPU 内存
+        // 9. kernel_gpu object will be automatically destructed at function end, releasing GPU memory
         
         return cudaSuccess;
     } catch (const GPUImageException& e) {
         fprintf(stderr, "Error: Failed to create GPUImage for kernel: %s\n", e.what());
-        // kernel_copy 会被 GPUImage 析构函数自动删除（RAII），但如果构造失败则不会被删除
-        // 需要手动删除 kernel_copy
+        // kernel_copy will be automatically deleted by GPUImage destructor (RAII), but if construction fails it won't be deleted
+        // Need to manually delete kernel_copy
         delete kernel_copy;
         return cudaErrorMemoryAllocation;
     }
@@ -644,7 +644,7 @@ cudaError_t calculate_magnitude_cuda(
     GPUImage& sobel_vertical,
     GPUImage* magnitude
 ) {
-    // 1. 验证输入
+    // 1. Validate input
     if (sobel_horizontal.device_data == NULL) {
         fprintf(stderr, "Error: Horizontal gradient GPUImage has no device data\n");
         return cudaErrorInvalidValue;
@@ -660,13 +660,13 @@ cudaError_t calculate_magnitude_cuda(
         return cudaErrorInvalidValue;
     }
     
-    // magnitude 必须指向空对象（通过默认构造函数创建）
+    // magnitude must point to an empty object (created via default constructor)
     if (magnitude->device_data != NULL) {
         fprintf(stderr, "Error: Magnitude GPUImage must be empty (device_data must be NULL)\n");
         return cudaErrorInvalidValue;
     }
     
-    // 2. 检查输入尺寸是否匹配
+    // 2. Check if input dimensions match
     if (sobel_horizontal.width != sobel_vertical.width || 
         sobel_horizontal.height != sobel_vertical.height) {
         fprintf(stderr, "Error: Gradient images have different dimensions: "
@@ -679,7 +679,7 @@ cudaError_t calculate_magnitude_cuda(
     int width = sobel_horizontal.width;
     int height = sobel_horizontal.height;
     
-    // 3. 构造输出 GPUImage 对象（直接使用带尺寸的构造函数）
+    // 3. Construct output GPUImage object (using constructor with dimensions)
     try {
         *magnitude = GPUImage(width, height);
     } catch (const GPUImageException& e) {
@@ -687,32 +687,32 @@ cudaError_t calculate_magnitude_cuda(
         return cudaErrorMemoryAllocation;
     }
     
-    // 4. 配置 kernel 启动参数
-    dim3 blockSize(16, 16);  // 每个 block 16x16 线程
+    // 4. Configure kernel launch parameters
+    dim3 blockSize(16, 16);  // 16x16 threads per block
     dim3 gridSize(
         (width + blockSize.x - 1) / blockSize.x,
         (height + blockSize.y - 1) / blockSize.y
     );
     
-    // 5. 启动 CUDA kernel
+    // 5. Launch CUDA kernel
     _calculate_magnitude_kernel<<<gridSize, blockSize>>>(
-        sobel_horizontal.device_data,  // 从 GPUImage 提取
-        sobel_vertical.device_data,    // 从 GPUImage 提取
-        magnitude->device_data,        // 从 GPUImage 指针提取
-        width,                         // 从 GPUImage 提取
-        height                         // 从 GPUImage 提取
+        sobel_horizontal.device_data,  // Extract from GPUImage
+        sobel_vertical.device_data,    // Extract from GPUImage
+        magnitude->device_data,        // Extract from GPUImage pointer
+        width,                         // Extract from GPUImage
+        height                         // Extract from GPUImage
     );
     
-    // 6. 检查 kernel 启动错误
+    // 6. Check kernel launch errors
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         fprintf(stderr, "Error: CUDA kernel launch failed: %s\n",
                 cudaGetErrorString(err));
-        return err;
-    }
-    
-    // 7. 等待 kernel 完成
-    err = cudaDeviceSynchronize();
+            return err;
+        }
+        
+        // 7. Wait for kernel to complete
+        err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
         fprintf(stderr, "Error: CUDA kernel execution failed: %s\n",
                 cudaGetErrorString(err));

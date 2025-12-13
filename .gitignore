@@ -70,3 +70,8 @@ whyareyourunning
 convert video to images/frames/*.png
 __date_template extras
 local_workspace/
+
+
+
+cuda/input_homo_smaller/*
+cuda/output_homo_smaller/*

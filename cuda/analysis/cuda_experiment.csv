@@ -1,0 +1,12 @@
+algorithm,file range start,file range end,total time
+cuda sobel,1,10,1525
+cuda sobel,1,20,11879
+cuda sobel,1,30,15527
+cuda sobel,1,40,19341
+cuda sobel,1,50,9154
+cuda sobel,1,60,23593
+cuda sobel,1,70,56719
+cuda sobel,1,80,27635
+cuda sobel,1,90,269848
+cuda sobel,1,100,477610
+regular sobel,1,20,54963
