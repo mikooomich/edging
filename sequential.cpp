@@ -202,7 +202,8 @@ void runSequential(std::vector<BitmapResult> &files, const FloatMap &gaussianKer
 
         completed++;
         if (completed % 5 == 0) {
-            printf("[MASTER]: Finished processing %d of %llu\n", completed, files.size());
+            // printf("[MASTER]: Finished processing %d of %llu\n", completed, files.size());
+            printf("[MASTER]: Finished processing %d of %lu\n", completed, files.size());
         }
     }
 }
